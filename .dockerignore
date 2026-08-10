@@ -1,8 +1,7 @@
 backend/node_modules/
 npm-debug.log
-.env
+**/.env
 .git/
 .gitignore
-frontend/
 db/
 *.md
