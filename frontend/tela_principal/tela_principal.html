@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../root.css">
+    <link rel="stylesheet" href="header.css">
+    <link rel="stylesheet" href="body.css">
+    <link rel="stylesheet" href="main.css">
+    <link rel="stylesheet" href="footer.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="script.js" defer></script>
+    <title>Meu Planejamento Financeiro</title>
+</head>
+
+<body>
+    <header>
+        <img src="../../assets/MEU PLANEJAMENTO FINANCEIRO LOGO.png" alt="LOGO MEU PLANEJAMENTO FINANCEIRO">
+
+        <div class="area_perfil_header">
+            <div class="alternador_tema" id="alternador_tema">
+                <button type="button" class="bolinha_tema" id="botao_alternar_tema" aria-label="Alternar tema claro/escuro">
+                    <svg class="icone_tema icone_lua" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/>
+                    </svg>
+                    <svg class="icone_tema icone_sol" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="campo_perfil">
+                <button type="button" class="botao_perfil" id="botao_perfil">Olá, <span id="nome_usuario"></span></button>
+
+                <div class="menu_perfil" id="menu_perfil">
+                    <button type="button" id="botao_ir_perfil">Perfil</button>
+                    <button type="button" id="botao_sair">Sair</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section class="secao_grafico">
+            <div class="cabecalho_secao">
+                <h2>Gastos</h2>
+
+                <div class="filtro_periodo">
+                    <select id="select_tipo_filtro">
+                        <option value="anual">Anual</option>
+                        <option value="personalizado">Intervalo personalizado</option>
+                    </select>
+                    <select id="filtro_ano" class="caixa_rolavel"></select>
+                    <input type="date" id="filtro_data_inicio" hidden>
+                    <input type="date" id="filtro_data_fim" hidden>
+                </div>
+            </div>
+
+            <div class="container_grafico">
+                <svg id="grafico_gastos" class="grafico_gastos" preserveAspectRatio="none"></svg>
+                <div id="tooltip_grafico" class="tooltip_grafico" hidden></div>
+            </div>
+        </section>
+
+        <section class="secao_informacoes">
+            <div class="cabecalho_secao">
+                <h2>Suas Informações</h2>
+
+                <div class="coluna_botoes_secao">
+                    <button type="button" id="botao_planejamento">EDITAR PLANEJAMENTO</button>
+                    <button type="button" id="botao_exportar_pdf">EXPORTAR EM PDF</button>
+                </div>
+            </div>
+
+            <div class="bloco_mes">
+                <p class="linha_total">Último mês informado: <span id="ultimo_mes_informado"></span></p>
+
+                <button type="button" id="botao_lancar_mes">ADICIONAR LANÇAMENTO — <span id="rotulo_mes_editavel"></span></button>
+
+                <form id="form_lancamento" class="form_novo_modelo" hidden>
+                    <select id="lancamento_tipo">
+                        <option value="renda">Renda</option>
+                        <option value="necessario">Gasto necessário</option>
+                        <option value="desejo">Gasto com desejo</option>
+                        <option value="investimento">Investimento</option>
+                    </select>
+                    <input type="text" id="lancamento_nome" placeholder="Descrição" required>
+                    <input type="number" id="lancamento_valor" placeholder="Valor (R$)" min="0" step="0.01" required>
+
+                    <label class="opcao_parcelado" id="opcao_parcelado" hidden>
+                        <input type="checkbox" id="lancamento_parcelado">
+                        Foi parcelado?
+                    </label>
+
+                    <span id="campos_parcela" hidden>
+                        <input type="number" id="lancamento_parcela_atual" placeholder="Parcela atual" min="1" step="1">
+                        <input type="number" id="lancamento_parcela_total" placeholder="Total de parcelas" min="1" step="1">
+                    </span>
+
+                    <button type="submit">Salvar Lançamento</button>
+                </form>
+            </div>
+
+            <div class="bloco_modelo">
+                <h3>Sistema Financeiro</h3>
+                <p class="linha_total" id="texto_modelo_ativo"></p>
+
+                <div class="seletor_modelo" id="seletor_modelo" hidden>
+                    <select id="select_modelo"></select>
+                    <button type="button" id="botao_aplicar_modelo">Aplicar ao meu Orçamento</button>
+                    <button type="button" id="botao_novo_modelo">Criar Novo Planejamento</button>
+
+                    <form id="form_novo_modelo" class="form_novo_modelo" hidden>
+                        <input type="text" id="novo_modelo_nome" placeholder="Nome do planejamento" required>
+                        <input type="number" id="novo_modelo_necessidades" placeholder="% Necessidades" min="0" max="100" required>
+                        <input type="number" id="novo_modelo_desejos" placeholder="% Desejos" min="0" max="100" required>
+                        <input type="number" id="novo_modelo_investimentos" placeholder="% Investimentos" min="0" max="100" required>
+                        <button type="submit">Salvar e Aplicar</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="bloco_renda">
+                <h3>Origens de Renda</h3>
+                <ul id="lista_rendas" class="lista_itens"></ul>
+                <p class="linha_total">Total de renda: <span id="total_renda"></span></p>
+            </div>
+
+            <div class="bloco_gasto">
+                <h3>Gastos Necessários</h3>
+                <ul id="lista_necessidades" class="lista_itens"></ul>
+                <p class="linha_total">Pode gastar: <span id="limite_necessidades"></span></p>
+                <p class="linha_total">Gastou: <span id="gasto_necessidades"></span></p>
+                <p class="linha_total">Sobrou: <span id="sobra_necessidades"></span></p>
+            </div>
+
+            <div class="bloco_gasto">
+                <h3>Gastos com Desejos</h3>
+                <ul id="lista_desejos" class="lista_itens"></ul>
+                <p class="linha_total">Pode gastar: <span id="limite_desejos"></span></p>
+                <p class="linha_total">Gastou: <span id="gasto_desejos"></span></p>
+                <p class="linha_total">Sobrou: <span id="sobra_desejos"></span></p>
+            </div>
+
+            <div class="bloco_gasto">
+                <h3>Investimentos</h3>
+                <ul id="lista_investimentos" class="lista_itens"></ul>
+                <p class="linha_total">Meta do mês: <span id="limite_investimentos"></span></p>
+                <p class="linha_total">Guardado: <span id="gasto_investimentos"></span></p>
+                <p class="linha_total">Falta guardar: <span id="sobra_investimentos"></span></p>
+            </div>
+
+            <div class="bloco_total_final">
+                <p class="linha_total">Total gasto no mês: <span id="total_gasto"></span></p>
+                <p class="linha_total">Total que sobrou ao fim do mês: <span id="total_sobrou"></span></p>
+            </div>
+        </section>
+    </main>
+
+    <div class="fundo_modal" id="fundo_modal_exportar" hidden>
+        <div class="janela_modal">
+            <div class="cabecalho_modal">
+                <h2>Exportar em PDF</h2>
+                <button type="button" id="botao_fechar_modal_exportar" class="botao_fechar_modal">×</button>
+            </div>
+
+            <p id="pergunta_exportar">Você gostaria de baixar as informações de apenas um mês ou um intervalo entre meses?</p>
+
+            <div class="opcoes_modal" id="opcoes_exportar">
+                <button type="button" id="botao_exportar_um_mes">Apenas um mês</button>
+                <button type="button" id="botao_exportar_varios_meses">Mais de um mês</button>
+            </div>
+
+            <div class="selecao_meses_export" id="selecao_um_mes" hidden>
+                <select id="exportar_mes_unico"></select>
+                <button type="button" id="botao_confirmar_exportar_um_mes">Confirmar</button>
+            </div>
+
+            <div class="selecao_meses_export" id="selecao_varios_meses" hidden>
+                <select id="exportar_mes_inicio"></select>
+                <select id="exportar_mes_fim"></select>
+                <button type="button" id="botao_confirmar_exportar_varios_meses">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="fundo_modal" id="fundo_modal_perfil" hidden>
+        <div class="janela_modal">
+            <div class="cabecalho_modal">
+                <h2>Perfil</h2>
+                <button type="button" id="botao_fechar_modal_perfil" class="botao_fechar_modal">×</button>
+            </div>
+
+            <p class="linha_total">Nome: <span id="perfil_nome"></span></p>
+            <p class="linha_total">E-mail: <span id="perfil_email"></span></p>
+
+            <div class="opcoes_modal">
+                <button type="button" id="botao_alterar_senha">Alterar senha</button>
+                <button type="button" id="botao_excluir_perfil">Excluir perfil</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="fundo_modal" id="fundo_modal_senha" hidden>
+        <div class="janela_modal">
+            <div class="cabecalho_modal">
+                <h2>Alterar senha</h2>
+                <button type="button" id="botao_fechar_modal_senha" class="botao_fechar_modal">×</button>
+            </div>
+
+            <form id="form_alterar_senha" class="form_novo_modelo">
+                <input type="password" id="senha_antiga" placeholder="Senha atual" required>
+                <input type="password" id="senha_nova" placeholder="Nova senha" required>
+                <input type="password" id="senha_nova_confirmacao" placeholder="Confirme a nova senha" required>
+                <button type="submit">Salvar nova senha</button>
+            </form>
+        </div>
+    </div>
+
+    <footer>
+        <img src="../../assets/MEU PLANEJAMENTO FINANCEIRO LOGO.png" alt="MEU PLANEJAMENTO FINANCEIRO LOGO">
+        <p>Este site foi criado apenas como hobby, com o intuito de aprender coisas novas — sem fins lucrativos.</p>
+    </footer>
+</body>
+</html>

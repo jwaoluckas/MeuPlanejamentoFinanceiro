@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../root.css">
+    <link rel="stylesheet" href="header.css">
+    <link rel="stylesheet" href="body.css">
+    <link rel="stylesheet" href="main.css">
+
+    <script src="script.js" defer></script>
+    <title>Meu Planejamento Financeiro</title>
+</head>
+
+<body>
+    <header>
+        <img src="../../assets/MEU PLANEJAMENTO FINANCEIRO LOGO.png" alt="LOGO MEU PLANEJAMENTO FINANCEIRO">
+    </header>
+
+    <main>
+        <form action="" method="post" class="campo_cadastro">
+             <div class="campo_nome">
+                <input type="text" name="nome_usuario" placeholder="Digite seu nome completo:" required>
+            </div>
+
+            <div class="campo_email">
+                <input type="email" name="email_usuario" placeholder="Digite seu email:" required>
+            </div>
+
+            <div class="campo_senha">
+                <input type="password" name="senha_usuario" id="senha" placeholder="Digite sua senha:" required>
+
+                <button type="button" class="mostrar_senha" aria-label="Mostrar senha" aria-pressed="false">
+                    <svg class="icone_olho icone_aberto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    <svg class="icone_olho icone_fechado" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-6.06M9.9 4.24A10.4 10.4 0 0 1 12 4c7 0 11 8 11 8a21.7 21.7 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+                        <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="campo_senha">
+                <input type="password" name="senha_usuario" id="verifique_senha" placeholder="Digite novamente sua senha:" required>
+
+                <button type="button" class="mostrar_senha" aria-label="Mostrar senha" aria-pressed="false">
+                    <svg class="icone_olho icone_aberto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    <svg class="icone_olho icone_fechado" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-6.06M9.9 4.24A10.4 10.4 0 0 1 12 4c7 0 11 8 11 8a21.7 21.7 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+                        <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                </button>
+            </div>
+
+                <button type="submit" name="botao_cadastrar" id="botao_cadastrar">CADASTRAR</button>
+                <button type="submit" name="botao_voltar" id="botao_voltar">VOLTAR</button>
+        </form>
+    </main>
+</body>
+</html>

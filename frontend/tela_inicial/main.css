@@ -1,0 +1,144 @@
+main{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    flex: 1;
+    width: 100%;
+    position: relative;
+    font-family: var(--montserrat);
+    font-weight: 500;
+    background-color: black;
+}
+
+.campo_login_senha{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    /* gap: 2.5vh; */
+    position: relative;
+}
+
+/* div{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+} */
+
+.campo_email, .campo_senha{
+    align-items: flex-start;
+    color: var(--verdeMPF);
+    margin-bottom: 2.5vh;
+}
+
+.mostrar_senha{
+    display: flex;
+    align-items: center;
+    gap: 0.5vw;
+    margin-top: 0.75vh;
+    margin-bottom: 1vh;
+    color: var(--verdeMPF);
+    font-size: 12.5px;
+}
+
+.mostrar_senha input{
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: var(--verdeMPF);
+    border-radius: 3px;
+    background-color: transparent;
+    cursor: pointer;
+}
+
+.mostrar_senha input:checked{
+    background-color: var(--verdeMPF);
+}
+
+.mostrar_senha label{
+    color: var(--verdeMPF_escuro);
+}
+
+div input{
+    width: 20vw;
+    border-style: solid;
+    border-radius: 5px;
+    border-color: var(--verdeMPF);
+    background-color: transparent;
+    color: white;
+}
+
+div input::placeholder{
+    color: darkgrey;
+}
+
+div input:-webkit-autofill,
+div input:-webkit-autofill:hover,
+div input:-webkit-autofill:focus,
+div input:-webkit-autofill:active{
+    -webkit-text-fill-color: white;
+    caret-color: white;
+    transition: background-color 9999s ease-in-out 0s;
+    box-shadow: 0 0 0px 1000px black inset;
+}
+
+.botoes{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.botoes button{
+    padding: 0 1vw;
+    border-style: none;
+    border-radius: 15px;
+    font-size: 25px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 500;
+    background-color: var(--verdeMPF_escuro);
+    color: white;
+    transition: 0.3s;
+    margin-bottom: 0.5vh;
+}
+
+.botoes button:hover{
+    transform: scale(1.1);
+    box-shadow: -4px 4px 2px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+}
+
+#buttonDiv{
+    margin: 1vh 0;
+    transition: 0.3s;
+}
+
+#buttonDiv:hover{
+    transform: scale(1.1);
+    box-shadow: -4px 4px 2px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+}
+
+#esqueceu_a_senha{
+    color: var(--verdeMPF);
+    font-size: 10px;
+}
+
+@media (max-width: 600px){
+    div input{
+        width: 78vw;
+    }
+
+    .botoes{
+        gap: 10px;
+    }
+
+    .botoes button{
+        padding: 0.8vh 4vw;
+        font-size: 20px;
+    }
+}

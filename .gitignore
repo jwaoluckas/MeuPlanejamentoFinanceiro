@@ -1,0 +1,29 @@
+# Dependências (reinstaláveis via npm install)
+node_modules/
+package-lock.json.bak
+
+# Variáveis de ambiente e segredos (senha do banco, client ID/secret, etc.)
+.env
+.env.*
+!.env.example
+
+# Credenciais e dados de teste que não podem vazar
+backend/usuario_teste.txt
+
+# Configurações locais do Claude Code (específicas da máquina do usuário)
+.claude/settings.local.json
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Arquivos de sistema operacional
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Arquivos temporários de editores
+*.swp
+*.swp.bak

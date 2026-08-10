@@ -1,0 +1,37 @@
+footer{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    width: 100%;
+    min-height: 5vh;
+    background-color: black;
+    border-top: 0.5vh solid var(--verdeMPF);
+    gap: 0.5vh;
+    padding: 1.5vh 4vw;
+    box-sizing: border-box;
+}
+
+footer img{
+    height: 24px;
+}
+
+footer p{
+    color: darkgrey;
+    font-family: var(--montserrat);
+    font-weight: 300;
+    font-size: 11px;
+    text-align: center;
+    line-height: 1.4;
+    max-width: 600px;
+}
+
+@media (max-width: 600px){
+    footer img{
+        height: 20px;
+    }
+
+    footer p{
+        font-size: 10px;
+    }
+}

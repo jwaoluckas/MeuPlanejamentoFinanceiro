@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="frontend/root.css">
+    <link rel="stylesheet" href="frontend/tela_inicial/header.css">
+    <link rel="stylesheet" href="frontend/tela_inicial/body.css">
+    <link rel="stylesheet" href="frontend/tela_inicial/main.css">
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="frontend/tela_inicial/botao_google.js" defer></script>
+    <script src="frontend/tela_inicial/script.js" defer></script>
+    <title>Meu Planejamento Financeiro</title>
+</head>
+
+<body>
+    <header>
+        <img src="assets/MEU PLANEJAMENTO FINANCEIRO LOGO.png" alt="LOGO MEU PLANEJAMENTO FINANCEIRO">
+    </header>
+
+    <main>
+        <form action="" method="post" class="campo_login_senha">
+            <div class="campo_email">
+                <input type="email" name="email_usuario" id="input_email" placeholder="Digite seu email:" required>
+            </div>
+
+            <div class="campo_senha">
+                <input type="password" name="senha_usuario" id="input_senha" placeholder="Digite sua senha:" required>
+
+                <label class="mostrar_senha">
+                    <input type="checkbox" id="mostrar_senha">
+                    Mostrar senha
+                </label>
+            </div>
+
+
+            <div class="botoes">
+                <button type="submit" name="botao_entrar" id="botao_entrar">ENTRAR</button>
+                <button type="submit" name="botao_cadastrar" id="botao_cadastrar">CADASTRAR</button>
+            </div>
+
+            <div id="buttonDiv"></div>
+
+            <a href="#" id="esqueceu_a_senha">ESQUECI MINHA SENHA</a>
+        </form>
+    </main>
+</body>
+</html>
