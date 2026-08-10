@@ -13,6 +13,10 @@ app.use(express.json());
 const path = require('path');
 app.use(express.static(path.join(__dirname, '..')));
 
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'index.html'));
+});
+
 const google_client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 app.post('/api/usuarios/cadastro', async (req, res) => {
@@ -408,6 +412,10 @@ app.delete('/api/usuarios/:id', async (req, res) => {
         console.error("Erro ao excluir usuário:", error);
         res.status(500).json({ erro: "Erro interno no servidor." });
     }
+});
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'index.html'));
 });
 
 const PORTA = process.env.PORT || 3000;
