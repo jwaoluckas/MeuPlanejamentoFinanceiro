@@ -1,21 +1,26 @@
 const nodemailer = require('nodemailer');
+const dns = require('dns').promises;
 
-const transportador = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-    },
-    family: 4,
-});
+async function enviar_email(destinatario, assunto, texto){
+    const enderecos = await dns.resolve4('smtp.gmail.com');
 
-module.exports = {
-    enviar_email: (destinatario, assunto, texto) => transportador.sendMail({
+    const transportador = nodemailer.createTransport({
+        host: enderecos[0],
+        port: 465,
+        secure: true,
+        tls: { servername: 'smtp.gmail.com' },
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASSWORD,
+        },
+    });
+
+    return transportador.sendMail({
         from: `"Meu Planejamento Financeiro" <${process.env.EMAIL_USER}>`,
         to: destinatario,
         subject: assunto,
         text: texto,
-    }),
-};
+    });
+}
+
+module.exports = { enviar_email };
