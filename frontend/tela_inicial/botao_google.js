@@ -1,6 +1,6 @@
 async function handleCredentialResponse(response) {
     try {
-        const resposta = await fetch('/api/usuarios/login-google', {
+        const resposta = await fetch(`${API_BASE_URL}/api/usuarios/login-google`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token: response.credential })

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../root.css">
+    <link rel="stylesheet" href="header.css">
+    <link rel="stylesheet" href="body.css">
+    <link rel="stylesheet" href="main.css">
+
+    <script src="script.js" defer></script>
+    <title>Meu Planejamento Financeiro</title>
+</head>
+
+<body>
+    <header>
+        <img src="../../assets/MEU PLANEJAMENTO FINANCEIRO LOGO.png" alt="LOGO MEU PLANEJAMENTO FINANCEIRO">
+
+        <div class="area_perfil_header">
+            <div class="alternador_tema" id="alternador_tema">
+                <button type="button" class="bolinha_tema" id="botao_alternar_tema" aria-label="Alternar tema claro/escuro">
+                    <svg class="icone_tema icone_lua" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/>
+                    </svg>
+                    <svg class="icone_tema icone_sol" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section id="etapa_pedir_email" class="etapa_recuperacao">
+            <div class="textos_informativos">
+                <h1>ESQUECEU SUA SENHA?</h1>
+                <p>Digite seu e-mail cadastrado para receber um código de verificação.</p>
+            </div>
+
+            <form id="form_pedir_email" class="campo_recuperacao">
+                <div class="campo_email">
+                    <input type="email" id="input_email_recuperacao" placeholder="Digite seu email:" required>
+                </div>
+
+                <div class="botoes">
+                    <button type="submit" id="botao_enviar_codigo">ENVIAR CÓDIGO</button>
+                    <button type="button" id="botao_voltar_login">VOLTAR</button>
+                </div>
+            </form>
+        </section>
+
+        <section id="etapa_digitar_codigo" class="etapa_recuperacao" hidden>
+            <div class="textos_informativos">
+                <h1>VERIFIQUE SEU EMAIL!</h1>
+                <p>Enviamos um código de seis dígitos para seu email. Digite-o para continuar.</p>
+            </div>
+
+            <form id="form_digitar_codigo" class="campo_esqueci_minha_senha">
+                <input type="number" class="input_num_esq_senha" required>
+                <input type="number" class="input_num_esq_senha" required>
+                <input type="number" class="input_num_esq_senha" required>
+                <input type="number" class="input_num_esq_senha" required>
+                <input type="number" class="input_num_esq_senha" required>
+                <input type="number" class="input_num_esq_senha" required>
+            </form>
+
+            <div class="botoes">
+                <button type="submit" form="form_digitar_codigo" id="botao_verificar_codigo">VERIFICAR</button>
+            </div>
+
+            <button type="button" id="botao_reenviar_codigo_senha" class="botao_link">Reenviar código</button>
+        </section>
+
+        <section id="etapa_nova_senha" class="etapa_recuperacao" hidden>
+            <div class="textos_informativos">
+                <h1>CRIE UMA NOVA SENHA</h1>
+                <p>Escolha uma nova senha para acessar sua conta.</p>
+            </div>
+
+            <form id="form_nova_senha" class="campo_recuperacao">
+                <div class="campo_senha">
+                    <input type="password" id="input_nova_senha" placeholder="Digite a nova senha:" required>
+                </div>
+
+                <div class="campo_senha">
+                    <input type="password" id="input_confirmar_nova_senha" placeholder="Confirme a nova senha:" required>
+                </div>
+
+                <div class="botoes">
+                    <button type="submit" id="botao_salvar_nova_senha">SALVAR NOVA SENHA</button>
+                </div>
+            </form>
+        </section>
+
+        <section id="etapa_confirmacao_final" class="etapa_recuperacao" hidden>
+            <div class="textos_informativos">
+                <h1>SENHA REDEFINIDA!</h1>
+                <p>Sua senha foi alterada com sucesso. Você já pode entrar com a nova senha.</p>
+            </div>
+
+            <div class="botoes">
+                <button type="button" id="botao_ir_para_login_final">IR PARA O LOGIN</button>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

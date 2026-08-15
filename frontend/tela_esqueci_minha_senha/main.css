@@ -1,0 +1,154 @@
+.textos_informativos{
+    display: flex;
+    position: relative;
+    top: -10vh;
+    min-width: 50vw;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    font-family: var(--montserrat);
+    gap: 1vh;
+    /* margin-bottom: 5vh; */
+}
+
+.textos_informativos h1{
+    color: var(--verdeMPF_escuro);
+    font-weight: 600;
+    font-size: 50px;
+}
+
+.textos_informativos p{
+    color: var(--cor_texto_secundario);
+    font-weight: 300;
+    font-size: 12.5px;
+}
+
+.campo_esqueci_minha_senha{
+    display: flex;
+    justify-content: center;
+    gap: 3vw;
+    width: 100%;
+}
+
+.input_num_esq_senha{
+    width: 5vw;
+    height: 10vh;
+    box-sizing: border-box;
+    background-color: var(--cor_fundo_cartao);
+    box-shadow: inset 0 0 0 1vh var(--cor_fundo_pagina);
+    border: 1px solid var(--verdeMPF);
+    border-radius: 12px;
+    text-align: center;
+    font-family: var(--montserrat);
+    font-size: 40px;
+    color: var(--cor_texto_principal);
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: textfield;
+}
+
+.input_num_esq_senha::-webkit-outer-spin-button,
+.input_num_esq_senha::-webkit-inner-spin-button{
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.etapa_recuperacao{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.etapa_recuperacao[hidden]{
+    display: none;
+}
+
+.campo_recuperacao{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.campo_recuperacao .campo_email,
+.campo_recuperacao .campo_senha{
+    align-items: flex-start;
+    color: var(--verdeMPF);
+    margin-bottom: 2.5vh;
+}
+
+.campo_recuperacao div input{
+    width: 20vw;
+    padding: 0.8vh 0.6vw;
+    box-sizing: border-box;
+    border-style: solid;
+    border-radius: 5px;
+    border-color: var(--verdeMPF);
+    background-color: transparent;
+    color: var(--cor_texto_principal);
+    font-family: var(--montserrat);
+}
+
+.campo_recuperacao div input::placeholder{
+    color: darkgrey;
+}
+
+.botoes{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 1vh;
+}
+
+.botoes button{
+    padding: 0.5vh 1vw;
+    border-style: none;
+    border-radius: 15px;
+    font-size: 20px;
+    font-family: var(--montserrat);
+    font-weight: 500;
+    background-color: var(--verdeMPF_escuro);
+    color: white;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.botoes button:hover{
+    transform: scale(1.1);
+    box-shadow: -4px 4px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* #botao_voltar_login{
+    background-color: transparent;
+    border: 1px solid var(--verdeMPF);
+    color: var(--verdeMPF);
+} */
+
+.botao_link{
+    display: block;
+    margin: 2vh auto 0;
+    padding: 0;
+    border-style: none;
+    background-color: transparent;
+    color: var(--verdeMPF);
+    font-family: var(--montserrat);
+    font-size: 13px;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+@media (max-width: 600px){
+    .campo_recuperacao div input{
+        width: 78vw;
+    }
+
+    .input_num_esq_senha{
+        width: 12vw;
+        height: 8vh;
+        font-size: 24px;
+    }
+}

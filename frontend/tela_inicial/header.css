@@ -5,7 +5,9 @@
 
 header{
     display: flex;
-    position: relative;
+    position: fixed;
+    top: 0;
+    left: 0;
     align-items: center;
     justify-content: center;
     height: 5vh;
@@ -13,11 +15,72 @@ header{
     flex-direction: column;
     background-color: black;
     border-bottom: 0.5vh solid var(--verdeMPF);
+    z-index: 10;
 }
 
 header img{
     height: 75%;
     position: absolute;
+}
+
+.area_perfil_header{
+    display: flex;
+    align-items: center;
+    position: absolute;
+    top: 50%;
+    right: 1.5vw;
+    transform: translateY(-50%);
+    z-index: 5;
+}
+
+.alternador_tema{
+    display: flex;
+    align-items: center;
+    width: 42px;
+    height: 22px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: var(--verdeMPF);
+    border-radius: 15px;
+    padding: 2px;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+.bolinha_tema{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-style: none;
+    border-radius: 50%;
+    background-color: var(--verdeMPF);
+    color: black;
+    padding: 0;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.alternador_tema.claro .bolinha_tema{
+    transform: translateX(20px);
+}
+
+.icone_tema{
+    width: 11px;
+    height: 11px;
+}
+
+.icone_sol{
+    display: none;
+}
+
+.alternador_tema.claro .icone_lua{
+    display: none;
+}
+
+.alternador_tema.claro .icone_sol{
+    display: block;
 }
 
 @media (max-width: 600px){
@@ -30,5 +93,9 @@ header img{
     header img{
         position: static;
         height: 28px;
+    }
+
+    .area_perfil_header{
+        right: 2vw;
     }
 }

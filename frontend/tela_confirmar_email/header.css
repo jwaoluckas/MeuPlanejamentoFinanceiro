@@ -26,18 +26,11 @@ header img{
 .area_perfil_header{
     display: flex;
     align-items: center;
-    gap: 0.8vw;
     position: absolute;
     top: 50%;
     right: 1.5vw;
     transform: translateY(-50%);
     z-index: 5;
-}
-
-.campo_perfil{
-    position: relative;
-    display: flex;
-    align-items: center;
 }
 
 .alternador_tema{
@@ -90,63 +83,6 @@ header img{
     display: block;
 }
 
-.botao_perfil{
-    padding: 0;
-    border-style: none;
-    background-color: transparent;
-    color: white;
-    font-family: var(--montserrat);
-    font-weight: 500;
-    font-size: 14px;
-    border-style: solid;
-    border-color: var(--verdeMPF);
-    border-width: 1px;
-    border-radius: 15px;
-    padding: 0.5vh 1vw;
-    cursor: pointer;
-    transition: 0.3s;
-}
-
-.botao_perfil:hover{
-    transform: scale(1.1);
-}
-
-.menu_perfil{
-    display: none;
-    flex-direction: column;
-    position: absolute;
-    top: 145%;
-    right: 7.5%;
-    min-width: 8vw;
-    border-style: solid;
-    border-width: 1px;
-    border-color: var(--verdeMPF);
-    border-radius: 5px;
-    background-color: black;
-    overflow: hidden;
-}
-
-.menu_perfil.aberto{
-    display: flex;
-}
-
-.menu_perfil button{
-    padding: 1vh 1vw;
-    border-style: none;
-    background-color: transparent;
-    color: white;
-    font-family: var(--montserrat);
-    font-weight: 500;
-    font-size: 15px;
-    text-align: center;
-    cursor: pointer;
-    transition: 0.3s;
-}
-
-.menu_perfil button:hover{
-    transform: scale(1.1);
-}
-
 @media (max-width: 600px){
     header{
         height: 6vh;
@@ -158,23 +94,6 @@ header img{
     }
 
     .area_perfil_header{
-        width: calc(100% - 4vw);
         right: 2vw;
-        justify-content: space-between;
-    }
-
-    .botao_perfil{
-        font-size: 11px;
-        padding: 0.5vh 0.6vw;
-        max-width: 24vw;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        display: inline-block;
-        box-sizing: border-box;
-    }
-
-    .menu_perfil{
-        min-width: 110px;
     }
 }

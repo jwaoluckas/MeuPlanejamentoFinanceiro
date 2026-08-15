@@ -1,6 +1,22 @@
 const botoes_mostrar_senha = document.querySelectorAll('.mostrar_senha');
 const botao_cadastrar = document.getElementById('botao_cadastrar');
 const botao_voltar = document.getElementById('botao_voltar');
+const alternador_tema = document.getElementById('alternador_tema');
+
+// ---------- Tema claro/escuro ----------
+
+function aplicar_tema(tema){
+    document.documentElement.setAttribute('data-tema', tema);
+    alternador_tema.classList.toggle('claro', tema === 'light');
+}
+
+alternador_tema.addEventListener('click', () => {
+    const novo_tema = document.documentElement.getAttribute('data-tema') === 'light' ? 'dark' : 'light';
+    localStorage.setItem('tema', novo_tema);
+    aplicar_tema(novo_tema);
+});
+
+aplicar_tema(localStorage.getItem('tema') === 'light' ? 'light' : 'dark');
 
 botoes_mostrar_senha.forEach((botao_mostrar_senha) => {
     const input_senha = botao_mostrar_senha.previousElementSibling;
@@ -35,7 +51,7 @@ botao_cadastrar.addEventListener('click', async (evento) =>{
     }
 
     try{
-        const resposta = await fetch('/api/usuarios/cadastro', {
+        const resposta = await fetch(`${API_BASE_URL}/api/usuarios/cadastro`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ nome: nome, email: email, senha: senha})
@@ -44,8 +60,15 @@ botao_cadastrar.addEventListener('click', async (evento) =>{
         const dados = await resposta.json();
 
         if(resposta.ok){
-            alert("Cadastro realizado com sucesso!");
-            window.location.href = '../../index.html';
+            // Contas de teste (backend/usuario_teste.txt) já são criadas direto, sem confirmação
+            if(dados.usuario){
+                alert("Cadastro realizado com sucesso!");
+                window.location.href = '../../index.html';
+            }
+
+            else{
+                window.location.href = `../tela_confirmar_email/confirmar_email.html?cadastro_pendente_id=${dados.cadastro_pendente_id}`;
+            }
         }
 
         else{

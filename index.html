@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="frontend/tela_inicial/body.css">
     <link rel="stylesheet" href="frontend/tela_inicial/main.css">
 
+    <script src="frontend/config.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="frontend/tela_inicial/botao_google.js" defer></script>
     <script src="frontend/tela_inicial/script.js" defer></script>
@@ -17,6 +18,27 @@
 <body>
     <header>
         <img src="assets/MEU PLANEJAMENTO FINANCEIRO LOGO.png" alt="LOGO MEU PLANEJAMENTO FINANCEIRO">
+
+        <div class="area_perfil_header">
+            <div class="alternador_tema" id="alternador_tema">
+                <button type="button" class="bolinha_tema" id="botao_alternar_tema" aria-label="Alternar tema claro/escuro">
+                    <svg class="icone_tema icone_lua" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/>
+                    </svg>
+                    <svg class="icone_tema icone_sol" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
     </header>
 
     <main>
@@ -42,7 +64,7 @@
 
             <div id="buttonDiv"></div>
 
-            <a href="#" id="esqueceu_a_senha">ESQUECI MINHA SENHA</a>
+            <a href="frontend/tela_esqueci_minha_senha/esqueci_minha_senha.html" id="esqueceu_a_senha">ESQUECI MINHA SENHA</a>
         </form>
     </main>
 </body>

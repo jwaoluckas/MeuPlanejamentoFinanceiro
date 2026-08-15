@@ -4,7 +4,9 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const { OAuth2Client } = require('google-auth-library');
+const fs = require('fs');
 const db = require('./db');
+const mailer = require('./mailer');
 
 const app = express();
 app.use(cors());
@@ -19,34 +21,175 @@ app.get('/', (req, res) => {
 
 const google_client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// ---------- Códigos de verificação (confirmação de e-mail / redefinição de senha) ----------
+
+const MINUTOS_EXPIRACAO_CODIGO = 15;
+const LIMITE_TENTATIVAS_CODIGO = 5;
+
+const tentativas_codigo_por_chave = new Map();
+
+function gerar_codigo_verificacao(){
+    return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function chave_tentativas(identificador, tipo){
+    return `${tipo}:${identificador}`;
+}
+
+function excedeu_limite_tentativas(identificador, tipo){
+    return (tentativas_codigo_por_chave.get(chave_tentativas(identificador, tipo)) || 0) >= LIMITE_TENTATIVAS_CODIGO;
+}
+
+function registrar_tentativa_errada(identificador, tipo){
+    const chave = chave_tentativas(identificador, tipo);
+    tentativas_codigo_por_chave.set(chave, (tentativas_codigo_por_chave.get(chave) || 0) + 1);
+}
+
+function limpar_tentativas(identificador, tipo){
+    tentativas_codigo_por_chave.delete(chave_tentativas(identificador, tipo));
+}
+
+async function gerar_e_enviar_codigo(usuario_id, tipo, email, assunto, montar_texto){
+    const codigo = gerar_codigo_verificacao();
+    const expira_em = new Date(Date.now() + MINUTOS_EXPIRACAO_CODIGO * 60 * 1000);
+
+    await db.query(
+        'UPDATE codigo_verificacao SET usado = true WHERE usuario_id = $1 AND tipo = $2 AND usado = false',
+        [usuario_id, tipo]
+    );
+
+    await db.query(
+        'INSERT INTO codigo_verificacao (usuario_id, codigo, tipo, expira_em) VALUES ($1, $2, $3, $4)',
+        [usuario_id, codigo, tipo, expira_em]
+    );
+
+    await mailer.enviar_email(email, assunto, montar_texto(codigo));
+}
+
+async function buscar_codigo_valido(usuario_id, tipo, codigo){
+    const resultado = await db.query(
+        `SELECT id FROM codigo_verificacao
+         WHERE usuario_id = $1 AND tipo = $2 AND codigo = $3 AND usado = false AND expira_em > NOW()`,
+        [usuario_id, tipo, codigo]
+    );
+
+    return resultado.rows[0] || null;
+}
+
+// ---------- Cadastro pendente (conta só é criada em `usuario` após confirmar o e-mail) ----------
+
+async function gerar_e_enviar_codigo_pendente(cadastro_pendente_id, email, assunto, montar_texto){
+    const codigo = gerar_codigo_verificacao();
+    const expira_em = new Date(Date.now() + MINUTOS_EXPIRACAO_CODIGO * 60 * 1000);
+
+    await db.query(
+        'UPDATE codigo_verificacao SET usado = true WHERE cadastro_pendente_id = $1 AND tipo = $2 AND usado = false',
+        [cadastro_pendente_id, 'confirmacao_email']
+    );
+
+    await db.query(
+        'INSERT INTO codigo_verificacao (cadastro_pendente_id, codigo, tipo, expira_em) VALUES ($1, $2, $3, $4)',
+        [cadastro_pendente_id, codigo, 'confirmacao_email', expira_em]
+    );
+
+    await mailer.enviar_email(email, assunto, montar_texto(codigo));
+}
+
+async function buscar_codigo_pendente_valido(cadastro_pendente_id, codigo){
+    const resultado = await db.query(
+        `SELECT id FROM codigo_verificacao
+         WHERE cadastro_pendente_id = $1 AND tipo = 'confirmacao_email' AND codigo = $2 AND usado = false AND expira_em > NOW()`,
+        [cadastro_pendente_id, codigo]
+    );
+
+    return resultado.rows[0] || null;
+}
+
+// ---------- Contas de teste (pulam a confirmação de e-mail) ----------
+
+function carregar_emails_de_teste(){
+    const caminho = path.join(__dirname, 'usuario_teste.txt');
+
+    if(!fs.existsSync(caminho)){
+        return new Set();
+    }
+
+    const conteudo = fs.readFileSync(caminho, 'utf-8');
+
+    const emails = conteudo
+        .split('\n')
+        .filter((linha) => linha.trim().toLowerCase().startsWith('email:'))
+        .map((linha) => linha.split(':').slice(1).join(':').trim().toLowerCase())
+        .filter((email) => email.length > 0);
+
+    return new Set(emails);
+}
+
+function eh_conta_de_teste(email){
+    return carregar_emails_de_teste().has(String(email).trim().toLowerCase());
+}
+
 app.post('/api/usuarios/cadastro', async (req, res) => {
     const { nome, email, senha } = req.body;
 
     try {
-        // 1. Validação: O e-mail já existe no banco de dados?
+        // Validação: O e-mail já existe no banco de dados?
         // (Isso evita aquele erro fatal do UNIQUE no PostgreSQL)
-        const usuario_existente = await db.query('SELECT * FROM usuario WHERE email = $1', [email]);
+        const usuario_existente = await db.query('SELECT id FROM usuario WHERE email = $1', [email]);
 
         if(usuario_existente.rows.length > 0){
             return res.status(400).json({ erro: "Este e-mail já está cadastrado no sistema." });
         }
 
-        // 2. Criptografando a senha (NUNCA salve a senha pura!)
-        const salt_rounds = 10;
-        const senha_hash = await bcrypt.hash(senha, salt_rounds);
+        // Criptografando a senha (NUNCA salve a senha pura!)
+        const senha_hash = await bcrypt.hash(senha, 10);
 
-        // 3. Cadastrando o usuário no Banco de Dados
-        const query_insert = `
-            INSERT INTO usuario (nome, email, senha)
-            VALUES ($1, $2, $3)
-            RETURNING id, nome, email;
-        `;
-        const novo_usuario = await db.query(query_insert, [nome, email, senha_hash]);
+        // Contas de teste (backend/usuario_teste.txt, fora do Git) pulam a confirmação de e-mail
+        if(eh_conta_de_teste(email)){
+            const novo_usuario = await db.query(
+                `INSERT INTO usuario (nome, email, senha, email_verificado)
+                 VALUES ($1, $2, $3, true)
+                 RETURNING id, nome, email, email_verificado`,
+                [nome, email, senha_hash]
+            );
 
-        // Retorna sucesso para o Front-end
+            return res.status(201).json({
+                mensagem: "Usuário criado com sucesso",
+                usuario: novo_usuario.rows[0]
+            });
+        }
+
+        // Uma nova tentativa de cadastro com o mesmo e-mail substitui a pendente anterior
+        await db.query('DELETE FROM cadastro_pendente WHERE email = $1', [email]);
+
+        const novo_pendente = await db.query(
+            `INSERT INTO cadastro_pendente (nome, email, senha_hash)
+             VALUES ($1, $2, $3)
+             RETURNING id, nome, email`,
+            [nome, email, senha_hash]
+        );
+
+        const pendente = novo_pendente.rows[0];
+
+        // A conta só existirá depois da confirmação: se o e-mail não sair, não faz sentido manter a pendência
+        try{
+            await gerar_e_enviar_codigo_pendente(
+                pendente.id,
+                pendente.email,
+                'Confirme seu e-mail - Meu Planejamento Financeiro',
+                (codigo) => `Olá, ${pendente.nome}! Seu código de confirmação de e-mail é: ${codigo}. Ele expira em ${MINUTOS_EXPIRACAO_CODIGO} minutos.`
+            );
+        }
+
+        catch(erro_email){
+            console.error("Erro ao enviar e-mail de confirmação:", erro_email);
+            await db.query('DELETE FROM cadastro_pendente WHERE id = $1', [pendente.id]);
+            return res.status(500).json({ erro: "Não foi possível enviar o e-mail de confirmação. Tente novamente." });
+        }
+
         res.status(201).json({
-            mensagem: "Usuário criado com sucesso",
-            usuario: novo_usuario.rows[0]
+            mensagem: "Enviamos um código de confirmação para o seu e-mail.",
+            cadastro_pendente_id: pendente.id
         });
 
     }
@@ -61,7 +204,7 @@ app.post('/api/usuarios/login', async (req, res) => {
     const { email, senha } = req.body;
 
     try {
-        const usuario_existente = await db.query('SELECT id, nome, email, senha FROM usuario WHERE email = $1', [email]);
+        const usuario_existente = await db.query('SELECT id, nome, email, senha, email_verificado FROM usuario WHERE email = $1', [email]);
 
         if(usuario_existente.rows.length === 0){
             return res.status(401).json({ erro: "E-mail ou senha incorretos." });
@@ -81,7 +224,7 @@ app.post('/api/usuarios/login', async (req, res) => {
 
         res.status(200).json({
             mensagem: "Login realizado com sucesso",
-            usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email }
+            usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, email_verificado: usuario.email_verificado }
         });
 
     }
@@ -103,7 +246,7 @@ app.post('/api/usuarios/login-google', async (req, res) => {
         const payload = ticket.getPayload();
         const { name: nome, email } = payload;
 
-        const usuario_existente = await db.query('SELECT id, nome, email FROM usuario WHERE email = $1', [email]);
+        const usuario_existente = await db.query('SELECT id, nome, email, email_verificado FROM usuario WHERE email = $1', [email]);
 
         if(usuario_existente.rows.length > 0){
             return res.status(200).json({
@@ -113,9 +256,9 @@ app.post('/api/usuarios/login-google', async (req, res) => {
         }
 
         const query_insert = `
-            INSERT INTO usuario (nome, email)
-            VALUES ($1, $2)
-            RETURNING id, nome, email;
+            INSERT INTO usuario (nome, email, email_verificado)
+            VALUES ($1, $2, true)
+            RETURNING id, nome, email, email_verificado;
         `;
         const novo_usuario = await db.query(query_insert, [nome, email]);
 
@@ -129,6 +272,171 @@ app.post('/api/usuarios/login-google', async (req, res) => {
     catch(error){
         console.error("Erro no login com Google:", error);
         res.status(401).json({ erro: "Token do Google inválido." });
+    }
+});
+
+// ---------- Esqueci minha senha ----------
+
+app.post('/api/usuarios/esqueci-senha/solicitar', async (req, res) => {
+    const { email } = req.body;
+
+    try{
+        const usuario_existente = await db.query('SELECT id, nome, email FROM usuario WHERE email = $1', [email]);
+
+        if(usuario_existente.rows.length > 0){
+            const usuario = usuario_existente.rows[0];
+
+            await gerar_e_enviar_codigo(
+                usuario.id,
+                'redefinicao_senha',
+                usuario.email,
+                'Redefinição de senha - Meu Planejamento Financeiro',
+                (codigo) => `Olá, ${usuario.nome}! Seu código para redefinir a senha é: ${codigo}. Ele expira em ${MINUTOS_EXPIRACAO_CODIGO} minutos. Se você não solicitou isso, ignore este e-mail.`
+            );
+        }
+
+        // Resposta genérica: não revela se o e-mail está cadastrado
+        res.status(200).json({ mensagem: "Se esse e-mail existir em nossa base, enviamos um código de verificação." });
+    }
+
+    catch(error){
+        console.error("Erro ao solicitar redefinição de senha:", error);
+        res.status(500).json({ erro: "Erro interno no servidor." });
+    }
+});
+
+app.post('/api/usuarios/esqueci-senha/verificar', async (req, res) => {
+    const { email, codigo } = req.body;
+
+    try{
+        if(excedeu_limite_tentativas(email, 'redefinicao_senha')){
+            return res.status(429).json({ erro: "Muitas tentativas erradas. Solicite um novo código." });
+        }
+
+        const usuario_existente = await db.query('SELECT id FROM usuario WHERE email = $1', [email]);
+        const usuario = usuario_existente.rows[0];
+        const codigo_valido = usuario && await buscar_codigo_valido(usuario.id, 'redefinicao_senha', codigo);
+
+        if(!codigo_valido){
+            registrar_tentativa_errada(email, 'redefinicao_senha');
+            return res.status(400).json({ erro: "Código inválido ou expirado." });
+        }
+
+        limpar_tentativas(email, 'redefinicao_senha');
+        res.status(200).json({ mensagem: "Código válido." });
+    }
+
+    catch(error){
+        console.error("Erro ao verificar código de redefinição de senha:", error);
+        res.status(500).json({ erro: "Erro interno no servidor." });
+    }
+});
+
+app.post('/api/usuarios/esqueci-senha/redefinir', async (req, res) => {
+    const { email, codigo, senha_nova } = req.body;
+
+    try{
+        if(excedeu_limite_tentativas(email, 'redefinicao_senha')){
+            return res.status(429).json({ erro: "Muitas tentativas erradas. Solicite um novo código." });
+        }
+
+        const usuario_existente = await db.query('SELECT id FROM usuario WHERE email = $1', [email]);
+        const usuario = usuario_existente.rows[0];
+        const codigo_valido = usuario && await buscar_codigo_valido(usuario.id, 'redefinicao_senha', codigo);
+
+        if(!codigo_valido){
+            registrar_tentativa_errada(email, 'redefinicao_senha');
+            return res.status(400).json({ erro: "Código inválido ou expirado." });
+        }
+
+        const senha_hash = await bcrypt.hash(senha_nova, 10);
+
+        await db.query('UPDATE usuario SET senha = $1 WHERE id = $2', [senha_hash, usuario.id]);
+        await db.query('UPDATE codigo_verificacao SET usado = true WHERE id = $1', [codigo_valido.id]);
+
+        limpar_tentativas(email, 'redefinicao_senha');
+        res.status(200).json({ mensagem: "Senha redefinida com sucesso." });
+    }
+
+    catch(error){
+        console.error("Erro ao redefinir senha:", error);
+        res.status(500).json({ erro: "Erro interno no servidor." });
+    }
+});
+
+// ---------- Confirmação de e-mail ----------
+
+app.post('/api/usuarios/confirmar-email/confirmar', async (req, res) => {
+    const { cadastro_pendente_id, codigo } = req.body;
+
+    try{
+        if(excedeu_limite_tentativas(cadastro_pendente_id, 'confirmacao_email')){
+            return res.status(429).json({ erro: "Muitas tentativas erradas. Solicite um novo código." });
+        }
+
+        const codigo_valido = await buscar_codigo_pendente_valido(cadastro_pendente_id, codigo);
+
+        if(!codigo_valido){
+            registrar_tentativa_errada(cadastro_pendente_id, 'confirmacao_email');
+            return res.status(400).json({ erro: "Código inválido ou expirado." });
+        }
+
+        const pendente_existente = await db.query('SELECT nome, email, senha_hash FROM cadastro_pendente WHERE id = $1', [cadastro_pendente_id]);
+
+        if(pendente_existente.rows.length === 0){
+            return res.status(404).json({ erro: "Cadastro pendente não encontrado. Refaça o cadastro." });
+        }
+
+        const pendente = pendente_existente.rows[0];
+
+        const novo_usuario = await db.query(
+            `INSERT INTO usuario (nome, email, senha, email_verificado)
+             VALUES ($1, $2, $3, true)
+             RETURNING id, nome, email, email_verificado`,
+            [pendente.nome, pendente.email, pendente.senha_hash]
+        );
+
+        // Cascata em codigo_verificacao remove o código usado junto com a pendência
+        await db.query('DELETE FROM cadastro_pendente WHERE id = $1', [cadastro_pendente_id]);
+
+        limpar_tentativas(cadastro_pendente_id, 'confirmacao_email');
+        res.status(200).json({
+            mensagem: "Conta criada e e-mail confirmado com sucesso!",
+            usuario: novo_usuario.rows[0]
+        });
+    }
+
+    catch(error){
+        console.error("Erro ao confirmar e-mail:", error);
+        res.status(500).json({ erro: "Erro interno no servidor." });
+    }
+});
+
+app.post('/api/usuarios/confirmar-email/reenviar', async (req, res) => {
+    const { cadastro_pendente_id } = req.body;
+
+    try{
+        const pendente_existente = await db.query('SELECT id, nome, email FROM cadastro_pendente WHERE id = $1', [cadastro_pendente_id]);
+
+        if(pendente_existente.rows.length === 0){
+            return res.status(404).json({ erro: "Cadastro pendente não encontrado. Refaça o cadastro." });
+        }
+
+        const pendente = pendente_existente.rows[0];
+
+        await gerar_e_enviar_codigo_pendente(
+            pendente.id,
+            pendente.email,
+            'Confirme seu e-mail - Meu Planejamento Financeiro',
+            (codigo) => `Olá, ${pendente.nome}! Seu código de confirmação de e-mail é: ${codigo}. Ele expira em ${MINUTOS_EXPIRACAO_CODIGO} minutos.`
+        );
+
+        res.status(200).json({ mensagem: "Novo código enviado." });
+    }
+
+    catch(error){
+        console.error("Erro ao reenviar código de confirmação:", error);
+        res.status(500).json({ erro: "Erro interno no servidor." });
     }
 });
 

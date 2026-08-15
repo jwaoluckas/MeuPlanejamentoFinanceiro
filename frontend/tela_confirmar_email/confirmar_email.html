@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../root.css">
+    <link rel="stylesheet" href="header.css">
+    <link rel="stylesheet" href="body.css">
+    <link rel="stylesheet" href="main.css">
+
+    <script src="script.js" defer></script>
+    <title>Meu Planejamento Financeiro</title>
+</head>
+
+<body>
+    <header>
+        <img src="../../assets/MEU PLANEJAMENTO FINANCEIRO LOGO.png" alt="LOGO MEU PLANEJAMENTO FINANCEIRO">
+
+        <div class="area_perfil_header">
+            <div class="alternador_tema" id="alternador_tema">
+                <button type="button" class="bolinha_tema" id="botao_alternar_tema" aria-label="Alternar tema claro/escuro">
+                    <svg class="icone_tema icone_lua" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/>
+                    </svg>
+                    <svg class="icone_tema icone_sol" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="textos_informativos">
+            <h1>CONFIRME SEU EMAIL!</h1>
+            <p>Enviamos um código de seis dígitos para o seu email. Digite-o abaixo para concluir seu cadastro.</p>
+        </div>
+
+        <form id="form_confirmar_email" class="campo_esqueci_minha_senha">
+            <input type="number" class="input_codigo_verificacao" required>
+            <input type="number" class="input_codigo_verificacao" required>
+            <input type="number" class="input_codigo_verificacao" required>
+            <input type="number" class="input_codigo_verificacao" required>
+            <input type="number" class="input_codigo_verificacao" required>
+            <input type="number" class="input_codigo_verificacao" required>
+        </form>
+
+        <div class="botoes">
+            <button type="button" id="botao_cancelar_cadastro">CANCELAR CADASTRO</button>
+            <button type="submit" form="form_confirmar_email" id="botao_confirmar_codigo">CONFIRMAR</button>
+        </div>
+
+        <button type="button" id="botao_reenviar_codigo_email" class="botao_link">Reenviar código</button>
+    </main>
+</body>
+</html>

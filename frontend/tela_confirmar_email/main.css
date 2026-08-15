@@ -1,0 +1,120 @@
+.textos_informativos{
+    display: flex;
+    position: relative;
+    top: -10vh;
+    min-width: 50vw;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    font-family: var(--montserrat);
+    gap: 1vh;
+    margin-bottom: 5vh;
+}
+
+.textos_informativos h1{
+    color: var(--verdeMPF_escuro);
+    font-weight: 600;
+    font-size: 50px;
+}
+
+.textos_informativos p{
+    color: var(--cor_texto_secundario);
+    font-weight: 300;
+    font-size: 12.5px;
+}
+
+.campo_esqueci_minha_senha{
+    display: flex;
+    justify-content: center;
+    gap: 3vw;
+}
+
+.input_codigo_verificacao{
+    width: 5vw;
+    height: 10vh;
+    box-sizing: border-box;
+    background-color: var(--cor_fundo_cartao);
+    box-shadow: inset 0 0 0 1vh var(--cor_fundo_pagina);
+    border: 1px solid var(--verdeMPF);
+    border-radius: 12px;
+    text-align: center;
+    font-family: var(--montserrat);
+    font-size: 40px;
+    color: var(--cor_texto_principal);
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: textfield;
+}
+
+.input_codigo_verificacao::-webkit-outer-spin-button,
+.input_codigo_verificacao::-webkit-inner-spin-button{
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.botoes{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 5vh;
+}
+
+.botoes button{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 5vh;
+    padding: 0 1.5vw;
+    border-style: none;
+    border-radius: 15px;
+    font-family: var(--montserrat);
+    font-weight: 500;
+    background-color: var(--verdeMPF_escuro);
+    color: white;
+    cursor: pointer;
+    transition: 0.3s;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+.botoes button:hover{
+    transform: scale(1.1);
+    box-shadow: -4px 4px 2px rgba(0, 0, 0, 0.3);
+}
+
+#botao_confirmar_codigo{
+    font-size: 20px;
+    padding: 0 2.5vw;
+}
+
+#botao_cancelar_cadastro{
+    font-size: 13px;
+    padding: 0 1vw;
+}
+
+@media (max-width: 600px){
+    .input_codigo_verificacao{
+        width: 12vw;
+        height: 8vh;
+        font-size: 24px;
+    }
+
+    .botoes{
+        flex-direction: column;
+    }
+}
+
+.botao_link{
+    display: block;
+    margin: 2vh auto 0;
+    padding: 0;
+    border-style: none;
+    background-color: transparent;
+    color: var(--verdeMPF);
+    font-family: var(--montserrat);
+    font-size: 13px;
+    text-decoration: underline;
+    cursor: pointer;
+}

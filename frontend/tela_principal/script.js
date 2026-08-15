@@ -175,7 +175,7 @@ form_alterar_senha.addEventListener('submit', async (evento) => {
     }
 
     try{
-        const resposta = await fetch(`/api/usuarios/${usuario.id}/senha`, {
+        const resposta = await fetch(`${API_BASE_URL}/api/usuarios/${usuario.id}/senha`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ senha_antiga: senha_antiga.value, senha_nova: senha_nova.value })
@@ -211,7 +211,7 @@ botao_excluir_perfil.addEventListener('click', async () => {
     }
 
     try{
-        const resposta = await fetch(`/api/usuarios/${usuario.id}`, { method: 'DELETE' });
+        const resposta = await fetch(`${API_BASE_URL}/api/usuarios/${usuario.id}`, { method: 'DELETE' });
 
         if(resposta.ok){
             localStorage.removeItem('usuario');
@@ -330,19 +330,19 @@ function somar(itens){
 }
 
 async function carregar_ultimo_mes(usuario_id){
-    const resposta = await fetch(`/api/usuarios/${usuario_id}/ultimo-mes`);
+    const resposta = await fetch(`${API_BASE_URL}/api/usuarios/${usuario_id}/ultimo-mes`);
     const dados = await resposta.json();
     return dados.ultimo_mes;
 }
 
 async function carregar_mes_editavel(usuario_id){
-    const resposta = await fetch(`/api/usuarios/${usuario_id}/mes-editavel`);
+    const resposta = await fetch(`${API_BASE_URL}/api/usuarios/${usuario_id}/mes-editavel`);
     const dados = await resposta.json();
     return dados.mes_editavel;
 }
 
 async function carregar_lancamentos(usuario_id, ano, mes){
-    const resposta = await fetch(`/api/usuarios/${usuario_id}/lancamentos?ano=${ano}&mes=${mes}`);
+    const resposta = await fetch(`${API_BASE_URL}/api/usuarios/${usuario_id}/lancamentos?ano=${ano}&mes=${mes}`);
     const dados = await resposta.json();
     return dados.lancamentos;
 }
@@ -370,7 +370,7 @@ function agrupar_lancamentos(lancamentos){
 
 async function excluir_lancamento(id){
     try{
-        const resposta = await fetch(`/api/lancamentos/${id}`, { method: 'DELETE' });
+        const resposta = await fetch(`${API_BASE_URL}/api/lancamentos/${id}`, { method: 'DELETE' });
 
         if(resposta.ok){
             await carregar_e_atualizar_tudo();
@@ -564,7 +564,7 @@ form_lancamento.addEventListener('submit', async (evento) => {
     }
 
     try{
-        const resposta = await fetch(`/api/usuarios/${usuario.id}/lancamentos`, {
+        const resposta = await fetch(`${API_BASE_URL}/api/usuarios/${usuario.id}/lancamentos`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -602,7 +602,7 @@ form_lancamento.addEventListener('submit', async (evento) => {
 // ---------- Sistema financeiro (modelos_orcamentarios) ----------
 
 async function carregar_modelos(usuario_id){
-    const resposta = await fetch(`/api/modelos-orcamentarios?usuario_id=${usuario_id}`);
+    const resposta = await fetch(`${API_BASE_URL}/api/modelos-orcamentarios?usuario_id=${usuario_id}`);
     const dados = await resposta.json();
 
     select_modelo.innerHTML = '';
@@ -620,7 +620,7 @@ async function carregar_modelos(usuario_id){
 }
 
 async function carregar_modelo_ativo(usuario_id){
-    const resposta = await fetch(`/api/usuarios/${usuario_id}/modelo-ativo`);
+    const resposta = await fetch(`${API_BASE_URL}/api/usuarios/${usuario_id}/modelo-ativo`);
 
     if(!resposta.ok){
         return null;
@@ -638,7 +638,7 @@ botao_aplicar_modelo.addEventListener('click', async () => {
     }
 
     try{
-        const resposta = await fetch(`/api/usuarios/${usuario.id}/modelo-ativo`, {
+        const resposta = await fetch(`${API_BASE_URL}/api/usuarios/${usuario.id}/modelo-ativo`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ modelo_id: opcao_selecionada.value })
@@ -691,7 +691,7 @@ form_novo_modelo.addEventListener('submit', async (evento) => {
     }
 
     try{
-        const resposta_criar = await fetch('/api/modelos-orcamentarios', {
+        const resposta_criar = await fetch(`${API_BASE_URL}/api/modelos-orcamentarios`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -713,7 +713,7 @@ form_novo_modelo.addEventListener('submit', async (evento) => {
         await carregar_modelos(usuario.id);
         select_modelo.value = dados_criar.modelo.id;
 
-        await fetch(`/api/usuarios/${usuario.id}/modelo-ativo`, {
+        await fetch(`${API_BASE_URL}/api/usuarios/${usuario.id}/modelo-ativo`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ modelo_id: dados_criar.modelo.id })

@@ -9,5 +9,7 @@ body{
     justify-content: center;
     flex-direction: column;
     min-height: 100vh;
-    /* background-color: aqua; */
+    padding-top: 5.5vh;
+    box-sizing: border-box;
+    background-color: var(--cor_fundo_pagina);
 }

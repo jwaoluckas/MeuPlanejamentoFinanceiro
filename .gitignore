@@ -13,6 +13,9 @@ backend/usuario_teste.txt
 # Configurações locais do Claude Code (específicas da máquina do usuário)
 .claude/settings.local.json
 
+# Configurações locais do editor (específicas da máquina do usuário)
+.vscode/
+
 # Logs
 npm-debug.log*
 yarn-debug.log*

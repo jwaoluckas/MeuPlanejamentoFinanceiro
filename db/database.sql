@@ -59,3 +59,41 @@ CREATE TABLE lancamento_mensal(
 	PRIMARY KEY(id),
 	FOREIGN KEY(usuario_id) REFERENCES usuario(id) ON DELETE CASCADE
 );
+
+ALTER TABLE usuario ADD COLUMN email_verificado BOOLEAN NOT NULL DEFAULT false;
+
+CREATE TABLE codigo_verificacao(
+	id BIGSERIAL,
+	usuario_id BIGINT NOT NULL,
+	codigo VARCHAR(6) NOT NULL,
+	tipo VARCHAR(30) NOT NULL,
+	criado_em TIMESTAMP NOT NULL DEFAULT NOW(),
+	expira_em TIMESTAMP NOT NULL,
+	usado BOOLEAN NOT NULL DEFAULT false,
+
+	CHECK (tipo IN ('confirmacao_email', 'redefinicao_senha')),
+
+	PRIMARY KEY(id),
+	FOREIGN KEY(usuario_id) REFERENCES usuario(id) ON DELETE CASCADE
+);
+
+CREATE TABLE cadastro_pendente(
+	id BIGSERIAL,
+	nome VARCHAR(70) NOT NULL,
+	email VARCHAR(255) NOT NULL UNIQUE,
+	senha_hash VARCHAR(255) NOT NULL,
+	criado_em TIMESTAMP NOT NULL DEFAULT NOW(),
+
+	CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
+
+	PRIMARY KEY(id)
+);
+
+-- A conta só é criada em `usuario` depois que o código de confirmacao_email é validado;
+-- até lá, o código fica vinculado ao cadastro_pendente, não a um usuario_id.
+ALTER TABLE codigo_verificacao ALTER COLUMN usuario_id DROP NOT NULL;
+ALTER TABLE codigo_verificacao ADD COLUMN cadastro_pendente_id BIGINT REFERENCES cadastro_pendente(id) ON DELETE CASCADE;
+ALTER TABLE codigo_verificacao ADD CONSTRAINT codigo_verificacao_referencia_valida CHECK (
+	(tipo = 'redefinicao_senha' AND usuario_id IS NOT NULL AND cadastro_pendente_id IS NULL)
+	OR (tipo = 'confirmacao_email' AND cadastro_pendente_id IS NOT NULL AND usuario_id IS NULL)
+);

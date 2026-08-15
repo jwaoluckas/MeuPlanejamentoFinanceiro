@@ -8,7 +8,8 @@ main{
     position: relative;
     font-family: var(--montserrat);
     font-weight: 500;
-    background-color: black;
+    background-color: var(--cor_fundo_pagina);
+    color: var(--cor_texto_principal);
 }
 
 .campo_login_senha{
@@ -69,21 +70,21 @@ div input{
     border-radius: 5px;
     border-color: var(--verdeMPF);
     background-color: transparent;
-    color: white;
+    color: var(--cor_texto_principal);
 }
 
 div input::placeholder{
-    color: darkgrey;
+    color: var(--cor_texto_secundario);
 }
 
 div input:-webkit-autofill,
 div input:-webkit-autofill:hover,
 div input:-webkit-autofill:focus,
 div input:-webkit-autofill:active{
-    -webkit-text-fill-color: white;
-    caret-color: white;
+    -webkit-text-fill-color: var(--cor_texto_principal);
+    caret-color: var(--cor_texto_principal);
     transition: background-color 9999s ease-in-out 0s;
-    box-shadow: 0 0 0px 1000px black inset;
+    box-shadow: 0 0 0px 1000px var(--cor_fundo_pagina) inset;
 }
 
 .botoes{
@@ -134,11 +135,14 @@ div input:-webkit-autofill:active{
     }
 
     .botoes{
+        flex-direction: column;
         gap: 10px;
     }
 
     .botoes button{
+        width: 78vw;
         padding: 0.8vh 4vw;
         font-size: 20px;
+        box-sizing: border-box;
     }
 }
