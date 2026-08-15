@@ -1,5 +1,7 @@
 # Meu Planejamento Financeiro
 
+🔗 Acesse o site: [meuplanejamentofinanceiro.dev.br](https://meuplanejamentofinanceiro.dev.br)
+
 Aplicação web para controle financeiro pessoal. Permite cadastrar rendas e gastos, aplicar modelos de divisão orçamentária (como o clássico 50-30-20), acompanhar a evolução dos gastos em um gráfico e exportar um relatório consolidado em PDF.
 
 A documentação completa de requisitos funcionais, requisitos não funcionais e casos de uso está no arquivo **CLAUDE.md**, na raiz do repositório. Este README foca em como o projeto está organizado, como configurá-lo e como executá-lo.
@@ -142,3 +144,8 @@ Todas as rotas abaixo têm prefixo `/api`.
 ## Documentação complementar
 
 Para a lista completa de requisitos funcionais, requisitos não funcionais e os fluxos detalhados de cada caso de uso (autenticação, cadastro de transação, configuração de planejamento, visualização de gastos e exportação em PDF), consulte o arquivo **CLAUDE.md**.
+
+## Colaboradores
+
+- **David Soares** — Redes & Infra
+- **Arthur Fellype** — Segurança
