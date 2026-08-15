@@ -10,7 +10,7 @@ const transportador = nodemailer.createTransport({
 
 module.exports = {
     enviar_email: (destinatario, assunto, texto) => transportador.sendMail({
-        from: process.env.EMAIL_USER,
+        from: `"Meu Planejamento Financeiro" <${process.env.EMAIL_USER}>`,
         to: destinatario,
         subject: assunto,
         text: texto,
