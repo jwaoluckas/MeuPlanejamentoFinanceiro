@@ -1,6 +1,6 @@
 # Meu Planejamento Financeiro
 
-🔗 Acesse o site: [meuplanejamentofinanceiro.dev.br](https://meuplanejamentofinanceiro.dev.br)
+🔗 Acesse o site: [meuplanejamentofinanceiro.dev.br](https://www.meuplanejamentofinanceiro.dev.br)
 
 Aplicação web para controle financeiro pessoal. Permite cadastrar rendas e gastos, aplicar modelos de divisão orçamentária (como o clássico 50-30-20), acompanhar a evolução dos gastos em um gráfico e exportar um relatório consolidado em PDF.
 
