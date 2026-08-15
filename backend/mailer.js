@@ -1,26 +1,20 @@
-const nodemailer = require('nodemailer');
-const dns = require('dns').promises;
+const { Resend } = require('resend');
 
-async function enviar_email(destinatario, assunto, texto){
-    const enderecos = await dns.resolve4('smtp.gmail.com');
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const transportador = nodemailer.createTransport({
-        host: enderecos[0],
-        port: 465,
-        secure: true,
-        tls: { servername: 'smtp.gmail.com' },
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASSWORD,
-        },
-    });
+module.exports = {
+    enviar_email: async (destinatario, assunto, texto) => {
+        const { data, error } = await resend.emails.send({
+            from: 'Meu Planejamento Financeiro <naoresponda@mail.meuplanejamentofinanceiro.dev.br>',
+            to: destinatario,
+            subject: assunto,
+            text: texto,
+        });
 
-    return transportador.sendMail({
-        from: `"Meu Planejamento Financeiro" <${process.env.EMAIL_USER}>`,
-        to: destinatario,
-        subject: assunto,
-        text: texto,
-    });
-}
+        if(error){
+            throw new Error(error.message || 'Falha ao enviar e-mail via Resend');
+        }
 
-module.exports = { enviar_email };
+        return data;
+    },
+};
