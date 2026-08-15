@@ -4,7 +4,8 @@
   "private": true,
   "main": "Node.js",
   "scripts": {
-    "start": "node Node.js"
+    "start": "npm run migrate && node Node.js",
+    "migrate": "node migrate.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

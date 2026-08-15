@@ -9,6 +9,7 @@ COPY backend/ ./backend/
 COPY index.html ./index.html
 COPY frontend/ ./frontend/
 COPY assets/ ./assets/
+COPY db/ ./db/
 
 EXPOSE 3000
 

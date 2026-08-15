@@ -53,6 +53,7 @@ O backend expõe uma API REST em Node.js/Express que valida regras de negócio (
 ├── backend/
 │   ├── Node.js                Ponto de entrada da API Express
 │   ├── db.js                  Configuração do pool de conexão com o PostgreSQL
+│   ├── migrate.js             Aplica db/database.sql no banco (roda automaticamente no npm start)
 │   ├── mailer.js              Configuração do nodemailer e envio de e-mails (Gmail)
 │   ├── package.json
 │   └── .env                   Variáveis de ambiente (não versionado)
@@ -85,7 +86,11 @@ npm install
 
 **2. Criar o banco de dados**
 
-Crie um banco no PostgreSQL com o nome que você definirá em `DB_NAME` e execute o script de schema:
+Crie um banco no PostgreSQL com o nome que você definirá em `DB_NAME`.
+
+O script `db/database.sql` é idempotente (usa `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, etc.) e é aplicado automaticamente pelo script `migrate` (`backend/migrate.js`) toda vez que o backend é iniciado via `npm start` — inclusive em produção, a cada deploy no Railway. Não é necessário rodá-lo manualmente ao iniciar via `npm start`.
+
+Se você quiser rodar apenas localmente sem passar por `npm start` (por exemplo, para inspecionar o schema antes de subir o backend), ainda é possível executá-lo manualmente:
 
 ```
 psql -U <seu_usuario> -d <nome_do_banco> -f db/database.sql
