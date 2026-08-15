@@ -20,11 +20,15 @@ A documentação completa de requisitos funcionais, requisitos não funcionais e
 
 ## Sobre o projeto
 
-O sistema é dividido em três telas principais:
+O sistema é dividido em cinco telas principais:
 
-**Tela inicial** (`index.html`): autenticação por e-mail e senha ou login com conta Google.
+**Tela inicial** (`index.html`): autenticação por e-mail e senha ou login com conta Google, com acesso ao fluxo de recuperação de senha.
 
 **Tela de cadastro** (`frontend/tela_cadastro`): criação de uma nova conta de usuário.
+
+**Tela de confirmação de e-mail** (`frontend/tela_confirmar_email`): exibida após o cadastro para que o usuário informe o código de confirmação enviado por e-mail; só depois disso a conta é efetivamente criada.
+
+**Tela de esqueci minha senha** (`frontend/tela_esqueci_minha_senha`): solicitação do código de redefinição de senha e definição de uma nova senha a partir desse código.
 
 **Tela principal** (`frontend/tela_principal`): painel financeiro do usuário autenticado, onde é possível lançar rendas e gastos do mês corrente, escolher ou criar um modelo de planejamento orçamentário, visualizar um gráfico de gastos ao longo do tempo, alternar entre tema claro e escuro, gerenciar o perfil (troca de senha, exclusão de conta) e exportar um relatório em PDF de um mês específico ou de um intervalo de meses.
 
@@ -32,7 +36,7 @@ O backend expõe uma API REST em Node.js/Express que valida regras de negócio (
 
 ## Tecnologias utilizadas
 
-**Backend**: Node.js, Express, PostgreSQL (via `pg`), bcrypt (hash de senha), google-auth-library (validação do token do Google), dotenv, cors.
+**Backend**: Node.js, Express, PostgreSQL (via `pg`), bcrypt (hash de senha), google-auth-library (validação do token do Google), nodemailer (envio de e-mails de confirmação de cadastro e redefinição de senha), dotenv, cors.
 
 **Frontend**: HTML, CSS e JavaScript puros (sem framework), Google Identity Services (login com Google) e jsPDF (geração de PDF no navegador).
 
@@ -49,15 +53,18 @@ O backend expõe uma API REST em Node.js/Express que valida regras de negócio (
 ├── backend/
 │   ├── Node.js                Ponto de entrada da API Express
 │   ├── db.js                  Configuração do pool de conexão com o PostgreSQL
+│   ├── mailer.js              Configuração do nodemailer e envio de e-mails (Gmail)
 │   ├── package.json
 │   └── .env                   Variáveis de ambiente (não versionado)
 ├── db/
 │   └── database.sql           Script de criação do schema do banco
 └── frontend/
-    ├── root.css                Variáveis e estilos globais (temas claro/escuro)
-    ├── tela_cadastro/          Tela de cadastro de usuário
-    ├── tela_inicial/           Tela de login (usada por index.html)
-    └── tela_principal/         Painel financeiro do usuário
+    ├── root.css                     Variáveis e estilos globais (temas claro/escuro)
+    ├── tela_cadastro/                Tela de cadastro de usuário
+    ├── tela_confirmar_email/         Tela de confirmação do código enviado por e-mail após o cadastro
+    ├── tela_esqueci_minha_senha/     Tela de recuperação de senha via código enviado por e-mail
+    ├── tela_inicial/                 Tela de login (usada por index.html)
+    └── tela_principal/               Painel financeiro do usuário
 ```
 
 ## Pré-requisitos
@@ -65,6 +72,7 @@ O backend expõe uma API REST em Node.js/Express que valida regras de negócio (
 - Node.js (versão 18 ou superior recomendada)
 - PostgreSQL instalado e em execução
 - Uma credencial OAuth de Cliente Web no Google Cloud Console, caso deseje testar o login com Google
+- Uma conta Gmail com verificação em duas etapas ativada e uma senha de app gerada, caso deseje testar localmente os fluxos de confirmação de e-mail e recuperação de senha
 
 ## Configuração do ambiente
 
@@ -97,9 +105,14 @@ DB_NAME=<nome_do_banco>
 PORT=3000
 
 GOOGLE_CLIENT_ID=<client_id_do_google_oauth>
+
+EMAIL_USER=<seu_email_do_gmail>
+EMAIL_PASSWORD=<senha_de_app_do_gmail>
 ```
 
 O `GOOGLE_CLIENT_ID` também precisa ser atualizado em `frontend/tela_inicial/botao_google.js`, já que o Google Identity Services roda no navegador e não tem acesso às variáveis de ambiente do servidor.
+
+`EMAIL_USER` e `EMAIL_PASSWORD` são as credenciais de uma conta Gmail usada pelo `nodemailer` (`backend/mailer.js`) para enviar os e-mails de confirmação de cadastro e de recuperação de senha. `EMAIL_PASSWORD` não é a senha normal da conta Google: é uma senha de app, gerada em uma conta com verificação em duas etapas ativada.
 
 ## Como executar
 
@@ -118,9 +131,14 @@ Todas as rotas abaixo têm prefixo `/api`.
 
 | Método | Rota | Descrição |
 |---|---|---|
-| POST | `/usuarios/cadastro` | Cria um novo usuário (nome, e-mail, senha) |
+| POST | `/usuarios/cadastro` | Recebe nome, e-mail e senha e cria um cadastro pendente, enviando um código de confirmação para o e-mail informado; o usuário só é criado em `usuario` depois que o e-mail é confirmado |
 | POST | `/usuarios/login` | Autentica por e-mail e senha |
 | POST | `/usuarios/login-google` | Autentica ou cadastra um usuário via token do Google |
+| POST | `/usuarios/confirmar-email/confirmar` | Valida o código de confirmação de um cadastro pendente e cria o usuário definitivo |
+| POST | `/usuarios/confirmar-email/reenviar` | Reenvia o código de confirmação de e-mail para um cadastro pendente |
+| POST | `/usuarios/esqueci-senha/solicitar` | Envia um código de verificação para o e-mail do usuário, caso ele exista |
+| POST | `/usuarios/esqueci-senha/verificar` | Valida o código de verificação de redefinição de senha |
+| POST | `/usuarios/esqueci-senha/redefinir` | Redefine a senha do usuário a partir de um código de verificação válido |
 | GET | `/modelos-orcamentarios?usuario_id=` | Lista os modelos padrão e os modelos personalizados do usuário |
 | POST | `/modelos-orcamentarios` | Cria um novo modelo de planejamento orçamentário |
 | GET | `/usuarios/:id/modelo-ativo` | Retorna o modelo de planejamento ativo do usuário |
@@ -135,11 +153,15 @@ Todas as rotas abaixo têm prefixo `/api`.
 
 ## Modelo de dados
 
-**usuario**: dados de login e o modelo de planejamento ativo (`modelo_ativo_id`).
+**usuario**: dados de login, o modelo de planejamento ativo (`modelo_ativo_id`) e se o e-mail já foi confirmado (`email_verificado`).
 
 **modelos_orcamentarios**: modelos de divisão percentual do orçamento (necessidades, desejos, investimentos), podendo ser globais (`usuario_id` nulo, como os modelos 50-30-20, 60-30-10 e 40-30-30 pré-cadastrados) ou específicos de um usuário.
 
 **lancamento_mensal**: rendas e gastos de um usuário em um determinado mês/ano, com suporte a lançamentos parcelados (`parcela_atual` / `parcela_total`).
+
+**cadastro_pendente**: nome, e-mail e senha (já com hash) de um cadastro ainda não confirmado; vira uma linha em `usuario` somente quando o código de confirmação de e-mail é validado.
+
+**codigo_verificacao**: códigos numéricos de uso único usados nos fluxos de confirmação de e-mail e redefinição de senha (`tipo`), com prazo de expiração (`expira_em`). Está vinculado a um `usuario_id` (redefinição de senha) ou a um `cadastro_pendente_id` (confirmação de e-mail), nunca aos dois ao mesmo tempo.
 
 ## Documentação complementar
 
