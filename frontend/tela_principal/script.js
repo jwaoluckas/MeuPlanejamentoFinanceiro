@@ -13,6 +13,11 @@ const perfil_email = document.getElementById('perfil_email');
 const botao_alterar_senha = document.getElementById('botao_alterar_senha');
 const botao_excluir_perfil = document.getElementById('botao_excluir_perfil');
 
+const fundo_modal_excluir_perfil = document.getElementById('fundo_modal_excluir_perfil');
+const botao_fechar_modal_excluir_perfil = document.getElementById('botao_fechar_modal_excluir_perfil');
+const form_excluir_perfil = document.getElementById('form_excluir_perfil');
+const senha_confirmacao_exclusao = document.getElementById('senha_confirmacao_exclusao');
+
 const fundo_modal_senha = document.getElementById('fundo_modal_senha');
 const botao_fechar_modal_senha = document.getElementById('botao_fechar_modal_senha');
 const form_alterar_senha = document.getElementById('form_alterar_senha');
@@ -84,6 +89,7 @@ const exportar_mes_fim = document.getElementById('exportar_mes_fim');
 const botao_confirmar_exportar_varios_meses = document.getElementById('botao_confirmar_exportar_varios_meses');
 
 const usuario = JSON.parse(localStorage.getItem('usuario'));
+const token = localStorage.getItem('token');
 
 const formatador_moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -94,13 +100,43 @@ if(usuario){
     nome_usuario.textContent = usuario.nome;
 }
 
+function encerrar_sessao_e_voltar_ao_login(){
+    localStorage.removeItem('usuario');
+    localStorage.removeItem('token');
+    window.location.href = '../../index.html';
+}
+
+// Sessão salva antes desta versão (sem token) ou corrompida: força novo login.
+if(usuario && !token){
+    encerrar_sessao_e_voltar_ao_login();
+}
+
+// ---------- Chamadas autenticadas (envia o token JWT no header Authorization) ----------
+
+async function fetch_autenticado(url, opcoes = {}){
+    const resposta = await fetch(url, {
+        ...opcoes,
+        headers: {
+            ...(opcoes.body ? { 'Content-Type': 'application/json' } : {}),
+            ...opcoes.headers,
+            'Authorization': `Bearer ${token}`
+        }
+    });
+
+    if(resposta.status === 401){
+        encerrar_sessao_e_voltar_ao_login();
+        throw new Error('Sessão expirada.');
+    }
+
+    return resposta;
+}
+
 botao_perfil.addEventListener('click', () => {
     menu_perfil.classList.toggle('aberto');
 });
 
 botao_sair.addEventListener('click', () => {
-    localStorage.removeItem('usuario');
-    window.location.href = '../../index.html';
+    encerrar_sessao_e_voltar_ao_login();
 });
 
 // ---------- Tema claro/escuro ----------
@@ -175,9 +211,8 @@ form_alterar_senha.addEventListener('submit', async (evento) => {
     }
 
     try{
-        const resposta = await fetch(`${API_BASE_URL}/api/usuarios/${usuario.id}/senha`, {
+        const resposta = await fetch_autenticado(`${API_BASE_URL}/api/usuarios/${usuario.id}/senha`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ senha_antiga: senha_antiga.value, senha_nova: senha_nova.value })
         });
 
@@ -199,7 +234,33 @@ form_alterar_senha.addEventListener('submit', async (evento) => {
     }
 });
 
-botao_excluir_perfil.addEventListener('click', async () => {
+function abrir_modal_excluir_perfil(){
+    if(!usuario){
+        return;
+    }
+
+    form_excluir_perfil.reset();
+    menu_perfil.classList.remove('aberto');
+    fundo_modal_perfil.hidden = true;
+    fundo_modal_excluir_perfil.hidden = false;
+}
+
+function fechar_modal_excluir_perfil(){
+    fundo_modal_excluir_perfil.hidden = true;
+}
+
+botao_excluir_perfil.addEventListener('click', abrir_modal_excluir_perfil);
+botao_fechar_modal_excluir_perfil.addEventListener('click', fechar_modal_excluir_perfil);
+
+fundo_modal_excluir_perfil.addEventListener('click', (evento) => {
+    if(evento.target === fundo_modal_excluir_perfil){
+        fechar_modal_excluir_perfil();
+    }
+});
+
+form_excluir_perfil.addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+
     if(!usuario){
         return;
     }
@@ -211,11 +272,13 @@ botao_excluir_perfil.addEventListener('click', async () => {
     }
 
     try{
-        const resposta = await fetch(`${API_BASE_URL}/api/usuarios/${usuario.id}`, { method: 'DELETE' });
+        const resposta = await fetch_autenticado(`${API_BASE_URL}/api/usuarios/${usuario.id}`, {
+            method: 'DELETE',
+            body: JSON.stringify({ senha: senha_confirmacao_exclusao.value })
+        });
 
         if(resposta.ok){
-            localStorage.removeItem('usuario');
-            window.location.href = '../../index.html';
+            encerrar_sessao_e_voltar_ao_login();
         }
 
         else{
@@ -330,19 +393,19 @@ function somar(itens){
 }
 
 async function carregar_ultimo_mes(usuario_id){
-    const resposta = await fetch(`${API_BASE_URL}/api/usuarios/${usuario_id}/ultimo-mes`);
+    const resposta = await fetch_autenticado(`${API_BASE_URL}/api/usuarios/${usuario_id}/ultimo-mes`);
     const dados = await resposta.json();
     return dados.ultimo_mes;
 }
 
 async function carregar_mes_editavel(usuario_id){
-    const resposta = await fetch(`${API_BASE_URL}/api/usuarios/${usuario_id}/mes-editavel`);
+    const resposta = await fetch_autenticado(`${API_BASE_URL}/api/usuarios/${usuario_id}/mes-editavel`);
     const dados = await resposta.json();
     return dados.mes_editavel;
 }
 
 async function carregar_lancamentos(usuario_id, ano, mes){
-    const resposta = await fetch(`${API_BASE_URL}/api/usuarios/${usuario_id}/lancamentos?ano=${ano}&mes=${mes}`);
+    const resposta = await fetch_autenticado(`${API_BASE_URL}/api/usuarios/${usuario_id}/lancamentos?ano=${ano}&mes=${mes}`);
     const dados = await resposta.json();
     return dados.lancamentos;
 }
@@ -370,7 +433,7 @@ function agrupar_lancamentos(lancamentos){
 
 async function excluir_lancamento(id){
     try{
-        const resposta = await fetch(`${API_BASE_URL}/api/lancamentos/${id}`, { method: 'DELETE' });
+        const resposta = await fetch_autenticado(`${API_BASE_URL}/api/lancamentos/${id}`, { method: 'DELETE' });
 
         if(resposta.ok){
             await carregar_e_atualizar_tudo();
@@ -564,9 +627,8 @@ form_lancamento.addEventListener('submit', async (evento) => {
     }
 
     try{
-        const resposta = await fetch(`${API_BASE_URL}/api/usuarios/${usuario.id}/lancamentos`, {
+        const resposta = await fetch_autenticado(`${API_BASE_URL}/api/usuarios/${usuario.id}/lancamentos`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 ano: mes_editavel_atual.ano,
                 mes: mes_editavel_atual.mes,
@@ -601,8 +663,8 @@ form_lancamento.addEventListener('submit', async (evento) => {
 
 // ---------- Sistema financeiro (modelos_orcamentarios) ----------
 
-async function carregar_modelos(usuario_id){
-    const resposta = await fetch(`${API_BASE_URL}/api/modelos-orcamentarios?usuario_id=${usuario_id}`);
+async function carregar_modelos(){
+    const resposta = await fetch_autenticado(`${API_BASE_URL}/api/modelos-orcamentarios`);
     const dados = await resposta.json();
 
     select_modelo.innerHTML = '';
@@ -620,7 +682,7 @@ async function carregar_modelos(usuario_id){
 }
 
 async function carregar_modelo_ativo(usuario_id){
-    const resposta = await fetch(`${API_BASE_URL}/api/usuarios/${usuario_id}/modelo-ativo`);
+    const resposta = await fetch_autenticado(`${API_BASE_URL}/api/usuarios/${usuario_id}/modelo-ativo`);
 
     if(!resposta.ok){
         return null;
@@ -638,9 +700,8 @@ botao_aplicar_modelo.addEventListener('click', async () => {
     }
 
     try{
-        const resposta = await fetch(`${API_BASE_URL}/api/usuarios/${usuario.id}/modelo-ativo`, {
+        const resposta = await fetch_autenticado(`${API_BASE_URL}/api/usuarios/${usuario.id}/modelo-ativo`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ modelo_id: opcao_selecionada.value })
         });
 
@@ -691,15 +752,13 @@ form_novo_modelo.addEventListener('submit', async (evento) => {
     }
 
     try{
-        const resposta_criar = await fetch(`${API_BASE_URL}/api/modelos-orcamentarios`, {
+        const resposta_criar = await fetch_autenticado(`${API_BASE_URL}/api/modelos-orcamentarios`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 nome: novo_modelo_nome.value,
                 porcent_necessidades: porcent_necessidades,
                 porcent_desejos: porcent_desejos,
-                porcent_investimentos: porcent_investimentos,
-                usuario_id: usuario.id
+                porcent_investimentos: porcent_investimentos
             })
         });
 
@@ -710,12 +769,11 @@ form_novo_modelo.addEventListener('submit', async (evento) => {
             return;
         }
 
-        await carregar_modelos(usuario.id);
+        await carregar_modelos();
         select_modelo.value = dados_criar.modelo.id;
 
-        await fetch(`${API_BASE_URL}/api/usuarios/${usuario.id}/modelo-ativo`, {
+        await fetch_autenticado(`${API_BASE_URL}/api/usuarios/${usuario.id}/modelo-ativo`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ modelo_id: dados_criar.modelo.id })
         });
 
@@ -1189,7 +1247,7 @@ async function inicializar_dashboard(){
     }
 
     try{
-        await carregar_modelos(usuario.id);
+        await carregar_modelos();
 
         const modelo_ativo = await carregar_modelo_ativo(usuario.id);
 

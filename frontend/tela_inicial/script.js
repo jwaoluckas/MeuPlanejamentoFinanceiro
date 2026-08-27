@@ -34,6 +34,7 @@ botao_entrar.addEventListener('click', async (evento) =>{
 
         if(resposta.ok){
             localStorage.setItem('usuario', JSON.stringify(dados.usuario));
+            localStorage.setItem('token', dados.token);
             window.location.href = 'frontend/tela_principal/tela_principal.html';
         }
 

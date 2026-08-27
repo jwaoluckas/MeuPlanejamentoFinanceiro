@@ -2,15 +2,63 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const bcrypt = require('bcrypt');
-const { OAuth2Client } = require('google-auth-library');
 const fs = require('fs');
 const db = require('./db');
 const mailer = require('./mailer');
+const { gerar_token, autenticar, exigir_dono_do_recurso } = require('./auth');
+const {
+    limitador_login_ip, limitador_login_email,
+    limitador_cadastro_ip, limitador_cadastro_email,
+    limitador_codigo_ip, limitador_codigo_email
+} = require('./rate_limit');
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+
+// Railway (e provedores similares) colocam a aplicação atrás de 1 proxy reverso: sem isso,
+// req.ip veria sempre o IP do proxy e o rate limiting por IP ficaria inútil.
+app.set('trust proxy', 1);
+
+// ---------- CORS: allowlist de origens (produção + Live Server local, quando não estiver em produção) ----------
+
+const ORIGENS_PERMITIDAS_PRODUCAO = ['https://www.meuplanejamentofinanceiro.dev.br'];
+const ORIGENS_PERMITIDAS_DESENVOLVIMENTO = ['http://127.0.0.1:5500', 'http://localhost:5500'];
+const em_producao = process.env.NODE_ENV === 'production';
+const origens_permitidas = em_producao
+    ? ORIGENS_PERMITIDAS_PRODUCAO
+    : [...ORIGENS_PERMITIDAS_PRODUCAO, ...ORIGENS_PERMITIDAS_DESENVOLVIMENTO];
+
+app.use(cors({
+    origin(origem, callback){
+        // Requisições sem header Origin (ex: mesma origem, curl) não passam por checagem de CORS
+        if(!origem || origens_permitidas.includes(origem)){
+            return callback(null, true);
+        }
+
+        callback(new Error('Origem não permitida pelo CORS.'));
+    }
+}));
+
+// ---------- Headers de segurança HTTP ----------
+
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", 'https://cdnjs.cloudflare.com'],
+            styleSrc: ["'self'", 'https://fonts.googleapis.com'],
+            fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+            imgSrc: ["'self'", 'data:'],
+            connectSrc: ["'self'", ...(em_producao ? [] : ['http://localhost:3000'])],
+            objectSrc: ["'none'"],
+            baseUri: ["'self'"],
+            formAction: ["'self'"]
+        }
+    }
+}));
+
+app.use(express.json({ limit: '100kb' }));
 
 const path = require('path');
 app.use(express.static(path.join(__dirname, '..')));
@@ -19,34 +67,49 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'index.html'));
 });
 
-const google_client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
 // ---------- Códigos de verificação (confirmação de e-mail / redefinição de senha) ----------
 
 const MINUTOS_EXPIRACAO_CODIGO = 15;
 const LIMITE_TENTATIVAS_CODIGO = 5;
 
-const tentativas_codigo_por_chave = new Map();
+const TAMANHO_MINIMO_SENHA = 8;
+
+function senha_atende_tamanho_minimo(senha){
+    return typeof senha === 'string' && senha.length >= TAMANHO_MINIMO_SENHA;
+}
 
 function gerar_codigo_verificacao(){
     return String(Math.floor(100000 + Math.random() * 900000));
 }
 
-function chave_tentativas(identificador, tipo){
-    return `${tipo}:${identificador}`;
+function normalizar_identificador_tentativas(identificador){
+    return String(identificador).trim().toLowerCase();
 }
 
-function excedeu_limite_tentativas(identificador, tipo){
-    return (tentativas_codigo_por_chave.get(chave_tentativas(identificador, tipo)) || 0) >= LIMITE_TENTATIVAS_CODIGO;
+async function excedeu_limite_tentativas(identificador, tipo){
+    const resultado = await db.query(
+        'SELECT tentativas FROM tentativa_verificacao WHERE identificador = $1 AND tipo = $2',
+        [normalizar_identificador_tentativas(identificador), tipo]
+    );
+
+    return (resultado.rows[0]?.tentativas || 0) >= LIMITE_TENTATIVAS_CODIGO;
 }
 
-function registrar_tentativa_errada(identificador, tipo){
-    const chave = chave_tentativas(identificador, tipo);
-    tentativas_codigo_por_chave.set(chave, (tentativas_codigo_por_chave.get(chave) || 0) + 1);
+async function registrar_tentativa_errada(identificador, tipo){
+    await db.query(
+        `INSERT INTO tentativa_verificacao (identificador, tipo, tentativas, atualizado_em)
+         VALUES ($1, $2, 1, NOW())
+         ON CONFLICT (identificador, tipo)
+         DO UPDATE SET tentativas = tentativa_verificacao.tentativas + 1, atualizado_em = NOW()`,
+        [normalizar_identificador_tentativas(identificador), tipo]
+    );
 }
 
-function limpar_tentativas(identificador, tipo){
-    tentativas_codigo_por_chave.delete(chave_tentativas(identificador, tipo));
+async function limpar_tentativas(identificador, tipo){
+    await db.query(
+        'DELETE FROM tentativa_verificacao WHERE identificador = $1 AND tipo = $2',
+        [normalizar_identificador_tentativas(identificador), tipo]
+    );
 }
 
 async function gerar_e_enviar_codigo(usuario_id, tipo, email, assunto, montar_texto){
@@ -129,20 +192,35 @@ function eh_conta_de_teste(email){
     return carregar_emails_de_teste().has(String(email).trim().toLowerCase());
 }
 
-app.post('/api/usuarios/cadastro', async (req, res) => {
+function gerar_id_pendente_falso(){
+    // Negativo de propósito: a sequência BIGSERIAL de cadastro_pendente só gera IDs positivos,
+    // então isto nunca colide com um id real — só serve para a resposta ter o mesmo formato.
+    return -Math.floor(Math.random() * 1_000_000_000) - 1;
+}
+
+app.post('/api/usuarios/cadastro', limitador_cadastro_ip, limitador_cadastro_email, async (req, res) => {
     const { nome, email, senha } = req.body;
 
     try {
-        // Validação: O e-mail já existe no banco de dados?
-        // (Isso evita aquele erro fatal do UNIQUE no PostgreSQL)
-        const usuario_existente = await db.query('SELECT id FROM usuario WHERE email = $1', [email]);
-
-        if(usuario_existente.rows.length > 0){
-            return res.status(400).json({ erro: "Este e-mail já está cadastrado no sistema." });
+        if(!senha_atende_tamanho_minimo(senha)){
+            return res.status(400).json({ erro: `A senha deve ter pelo menos ${TAMANHO_MINIMO_SENHA} caracteres.` });
         }
 
-        // Criptografando a senha (NUNCA salve a senha pura!)
+        // O e-mail já existe no banco de dados? Não revelamos isso na resposta (evita enumeração de
+        // e-mail): seguimos o mesmo padrão anti-enumeração do fluxo de "esqueci minha senha".
+        const usuario_existente = await db.query('SELECT id FROM usuario WHERE email = $1', [email]);
+        const email_ja_cadastrado = usuario_existente.rows.length > 0;
+
+        // Sempre executa o hash, mesmo quando o resultado será descartado logo abaixo: evita que o
+        // tempo de resposta entregue via timing a mesma informação que a resposta já não revela.
         const senha_hash = await bcrypt.hash(senha, 10);
+
+        if(email_ja_cadastrado){
+            return res.status(201).json({
+                mensagem: "Enviamos um código de confirmação para o seu e-mail.",
+                cadastro_pendente_id: gerar_id_pendente_falso()
+            });
+        }
 
         // Contas de teste (backend/usuario_teste.txt, fora do Git) pulam a confirmação de e-mail
         if(eh_conta_de_teste(email)){
@@ -200,7 +278,7 @@ app.post('/api/usuarios/cadastro', async (req, res) => {
     }
 });
 
-app.post('/api/usuarios/login', async (req, res) => {
+app.post('/api/usuarios/login', limitador_login_ip, limitador_login_email, async (req, res) => {
     const { email, senha } = req.body;
 
     try {
@@ -212,10 +290,6 @@ app.post('/api/usuarios/login', async (req, res) => {
 
         const usuario = usuario_existente.rows[0];
 
-        if(!usuario.senha){
-            return res.status(401).json({ erro: "Esta conta só pode entrar pelo login com Google." });
-        }
-
         const senha_correta = await bcrypt.compare(senha, usuario.senha);
 
         if(!senha_correta){
@@ -224,7 +298,8 @@ app.post('/api/usuarios/login', async (req, res) => {
 
         res.status(200).json({
             mensagem: "Login realizado com sucesso",
-            usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, email_verificado: usuario.email_verificado }
+            usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, email_verificado: usuario.email_verificado },
+            token: gerar_token(usuario.id)
         });
 
     }
@@ -235,49 +310,9 @@ app.post('/api/usuarios/login', async (req, res) => {
     }
 });
 
-app.post('/api/usuarios/login-google', async (req, res) => {
-    const { token } = req.body;
-
-    try {
-        const ticket = await google_client.verifyIdToken({
-            idToken: token,
-            audience: process.env.GOOGLE_CLIENT_ID,
-        });
-        const payload = ticket.getPayload();
-        const { name: nome, email } = payload;
-
-        const usuario_existente = await db.query('SELECT id, nome, email, email_verificado FROM usuario WHERE email = $1', [email]);
-
-        if(usuario_existente.rows.length > 0){
-            return res.status(200).json({
-                mensagem: "Login realizado com sucesso",
-                usuario: usuario_existente.rows[0]
-            });
-        }
-
-        const query_insert = `
-            INSERT INTO usuario (nome, email, email_verificado)
-            VALUES ($1, $2, true)
-            RETURNING id, nome, email, email_verificado;
-        `;
-        const novo_usuario = await db.query(query_insert, [nome, email]);
-
-        res.status(201).json({
-            mensagem: "Usuário criado com sucesso",
-            usuario: novo_usuario.rows[0]
-        });
-
-    }
-
-    catch(error){
-        console.error("Erro no login com Google:", error);
-        res.status(401).json({ erro: "Token do Google inválido." });
-    }
-});
-
 // ---------- Esqueci minha senha ----------
 
-app.post('/api/usuarios/esqueci-senha/solicitar', async (req, res) => {
+app.post('/api/usuarios/esqueci-senha/solicitar', limitador_codigo_ip, limitador_codigo_email, async (req, res) => {
     const { email } = req.body;
 
     try{
@@ -305,11 +340,11 @@ app.post('/api/usuarios/esqueci-senha/solicitar', async (req, res) => {
     }
 });
 
-app.post('/api/usuarios/esqueci-senha/verificar', async (req, res) => {
+app.post('/api/usuarios/esqueci-senha/verificar', limitador_codigo_ip, limitador_codigo_email, async (req, res) => {
     const { email, codigo } = req.body;
 
     try{
-        if(excedeu_limite_tentativas(email, 'redefinicao_senha')){
+        if(await excedeu_limite_tentativas(email, 'redefinicao_senha')){
             return res.status(429).json({ erro: "Muitas tentativas erradas. Solicite um novo código." });
         }
 
@@ -318,11 +353,11 @@ app.post('/api/usuarios/esqueci-senha/verificar', async (req, res) => {
         const codigo_valido = usuario && await buscar_codigo_valido(usuario.id, 'redefinicao_senha', codigo);
 
         if(!codigo_valido){
-            registrar_tentativa_errada(email, 'redefinicao_senha');
+            await registrar_tentativa_errada(email, 'redefinicao_senha');
             return res.status(400).json({ erro: "Código inválido ou expirado." });
         }
 
-        limpar_tentativas(email, 'redefinicao_senha');
+        await limpar_tentativas(email, 'redefinicao_senha');
         res.status(200).json({ mensagem: "Código válido." });
     }
 
@@ -332,11 +367,11 @@ app.post('/api/usuarios/esqueci-senha/verificar', async (req, res) => {
     }
 });
 
-app.post('/api/usuarios/esqueci-senha/redefinir', async (req, res) => {
+app.post('/api/usuarios/esqueci-senha/redefinir', limitador_codigo_ip, limitador_codigo_email, async (req, res) => {
     const { email, codigo, senha_nova } = req.body;
 
     try{
-        if(excedeu_limite_tentativas(email, 'redefinicao_senha')){
+        if(await excedeu_limite_tentativas(email, 'redefinicao_senha')){
             return res.status(429).json({ erro: "Muitas tentativas erradas. Solicite um novo código." });
         }
 
@@ -345,8 +380,12 @@ app.post('/api/usuarios/esqueci-senha/redefinir', async (req, res) => {
         const codigo_valido = usuario && await buscar_codigo_valido(usuario.id, 'redefinicao_senha', codigo);
 
         if(!codigo_valido){
-            registrar_tentativa_errada(email, 'redefinicao_senha');
+            await registrar_tentativa_errada(email, 'redefinicao_senha');
             return res.status(400).json({ erro: "Código inválido ou expirado." });
+        }
+
+        if(!senha_atende_tamanho_minimo(senha_nova)){
+            return res.status(400).json({ erro: `A senha deve ter pelo menos ${TAMANHO_MINIMO_SENHA} caracteres.` });
         }
 
         const senha_hash = await bcrypt.hash(senha_nova, 10);
@@ -354,7 +393,7 @@ app.post('/api/usuarios/esqueci-senha/redefinir', async (req, res) => {
         await db.query('UPDATE usuario SET senha = $1 WHERE id = $2', [senha_hash, usuario.id]);
         await db.query('UPDATE codigo_verificacao SET usado = true WHERE id = $1', [codigo_valido.id]);
 
-        limpar_tentativas(email, 'redefinicao_senha');
+        await limpar_tentativas(email, 'redefinicao_senha');
         res.status(200).json({ mensagem: "Senha redefinida com sucesso." });
     }
 
@@ -366,18 +405,18 @@ app.post('/api/usuarios/esqueci-senha/redefinir', async (req, res) => {
 
 // ---------- Confirmação de e-mail ----------
 
-app.post('/api/usuarios/confirmar-email/confirmar', async (req, res) => {
+app.post('/api/usuarios/confirmar-email/confirmar', limitador_codigo_ip, limitador_codigo_email, async (req, res) => {
     const { cadastro_pendente_id, codigo } = req.body;
 
     try{
-        if(excedeu_limite_tentativas(cadastro_pendente_id, 'confirmacao_email')){
+        if(await excedeu_limite_tentativas(cadastro_pendente_id, 'confirmacao_email')){
             return res.status(429).json({ erro: "Muitas tentativas erradas. Solicite um novo código." });
         }
 
         const codigo_valido = await buscar_codigo_pendente_valido(cadastro_pendente_id, codigo);
 
         if(!codigo_valido){
-            registrar_tentativa_errada(cadastro_pendente_id, 'confirmacao_email');
+            await registrar_tentativa_errada(cadastro_pendente_id, 'confirmacao_email');
             return res.status(400).json({ erro: "Código inválido ou expirado." });
         }
 
@@ -399,7 +438,7 @@ app.post('/api/usuarios/confirmar-email/confirmar', async (req, res) => {
         // Cascata em codigo_verificacao remove o código usado junto com a pendência
         await db.query('DELETE FROM cadastro_pendente WHERE id = $1', [cadastro_pendente_id]);
 
-        limpar_tentativas(cadastro_pendente_id, 'confirmacao_email');
+        await limpar_tentativas(cadastro_pendente_id, 'confirmacao_email');
         res.status(200).json({
             mensagem: "Conta criada e e-mail confirmado com sucesso!",
             usuario: novo_usuario.rows[0]
@@ -412,7 +451,7 @@ app.post('/api/usuarios/confirmar-email/confirmar', async (req, res) => {
     }
 });
 
-app.post('/api/usuarios/confirmar-email/reenviar', async (req, res) => {
+app.post('/api/usuarios/confirmar-email/reenviar', limitador_codigo_ip, limitador_codigo_email, async (req, res) => {
     const { cadastro_pendente_id } = req.body;
 
     try{
@@ -440,13 +479,11 @@ app.post('/api/usuarios/confirmar-email/reenviar', async (req, res) => {
     }
 });
 
-app.get('/api/modelos-orcamentarios', async (req, res) => {
-    const { usuario_id } = req.query;
-
+app.get('/api/modelos-orcamentarios', autenticar, async (req, res) => {
     try {
         const resultado = await db.query(
             'SELECT id, nome, descricao, porcent_necessidades, porcent_desejos, porcent_investimentos, usuario_id FROM modelos_orcamentarios WHERE usuario_id IS NULL OR usuario_id = $1 ORDER BY usuario_id NULLS FIRST, id',
-            [usuario_id || null]
+            [req.usuario_id]
         );
 
         res.status(200).json({ modelos: resultado.rows });
@@ -458,8 +495,8 @@ app.get('/api/modelos-orcamentarios', async (req, res) => {
     }
 });
 
-app.post('/api/modelos-orcamentarios', async (req, res) => {
-    const { nome, descricao, porcent_necessidades, porcent_desejos, porcent_investimentos, usuario_id } = req.body;
+app.post('/api/modelos-orcamentarios', autenticar, async (req, res) => {
+    const { nome, descricao, porcent_necessidades, porcent_desejos, porcent_investimentos } = req.body;
 
     try {
         if((porcent_necessidades + porcent_desejos + porcent_investimentos) !== 100){
@@ -471,7 +508,7 @@ app.post('/api/modelos-orcamentarios', async (req, res) => {
             VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING id, nome, descricao, porcent_necessidades, porcent_desejos, porcent_investimentos, usuario_id;
         `;
-        const novo_modelo = await db.query(query_insert, [nome, descricao || null, porcent_necessidades, porcent_desejos, porcent_investimentos, usuario_id]);
+        const novo_modelo = await db.query(query_insert, [nome, descricao || null, porcent_necessidades, porcent_desejos, porcent_investimentos, req.usuario_id]);
 
         res.status(201).json({
             mensagem: "Planejamento criado com sucesso",
@@ -485,7 +522,7 @@ app.post('/api/modelos-orcamentarios', async (req, res) => {
     }
 });
 
-app.get('/api/usuarios/:id/modelo-ativo', async (req, res) => {
+app.get('/api/usuarios/:id/modelo-ativo', autenticar, exigir_dono_do_recurso, async (req, res) => {
     const { id } = req.params;
 
     try {
@@ -510,7 +547,7 @@ app.get('/api/usuarios/:id/modelo-ativo', async (req, res) => {
     }
 });
 
-app.put('/api/usuarios/:id/modelo-ativo', async (req, res) => {
+app.put('/api/usuarios/:id/modelo-ativo', autenticar, exigir_dono_do_recurso, async (req, res) => {
     const { id } = req.params;
     const { modelo_id } = req.body;
 
@@ -554,7 +591,7 @@ async function obter_mes_editavel(usuario_id){
     return mes_anterior(ano_atual, mes_atual);
 }
 
-app.get('/api/usuarios/:id/lancamentos', async (req, res) => {
+app.get('/api/usuarios/:id/lancamentos', autenticar, exigir_dono_do_recurso, async (req, res) => {
     const { id } = req.params;
     const { ano, mes } = req.query;
 
@@ -573,7 +610,7 @@ app.get('/api/usuarios/:id/lancamentos', async (req, res) => {
     }
 });
 
-app.get('/api/usuarios/:id/ultimo-mes', async (req, res) => {
+app.get('/api/usuarios/:id/ultimo-mes', autenticar, exigir_dono_do_recurso, async (req, res) => {
     const { id } = req.params;
 
     try {
@@ -591,7 +628,7 @@ app.get('/api/usuarios/:id/ultimo-mes', async (req, res) => {
     }
 });
 
-app.get('/api/usuarios/:id/mes-editavel', async (req, res) => {
+app.get('/api/usuarios/:id/mes-editavel', autenticar, exigir_dono_do_recurso, async (req, res) => {
     const { id } = req.params;
 
     try {
@@ -605,7 +642,7 @@ app.get('/api/usuarios/:id/mes-editavel', async (req, res) => {
     }
 });
 
-app.post('/api/usuarios/:id/lancamentos', async (req, res) => {
+app.post('/api/usuarios/:id/lancamentos', autenticar, exigir_dono_do_recurso, async (req, res) => {
     const { id } = req.params;
     const { ano, mes, tipo, nome, valor, parcela_atual, parcela_total } = req.body;
 
@@ -654,11 +691,19 @@ app.post('/api/usuarios/:id/lancamentos', async (req, res) => {
     }
 });
 
-app.delete('/api/lancamentos/:id', async (req, res) => {
+app.delete('/api/lancamentos/:id', autenticar, async (req, res) => {
     const { id } = req.params;
 
     try {
-        await db.query('DELETE FROM lancamento_mensal WHERE id = $1', [id]);
+        const resultado = await db.query(
+            'DELETE FROM lancamento_mensal WHERE id = $1 AND usuario_id = $2 RETURNING id',
+            [id, req.usuario_id]
+        );
+
+        if(resultado.rows.length === 0){
+            return res.status(403).json({ erro: "Você não tem permissão para remover este lançamento." });
+        }
+
         res.status(200).json({ mensagem: "Lançamento removido com sucesso." });
     }
 
@@ -668,7 +713,7 @@ app.delete('/api/lancamentos/:id', async (req, res) => {
     }
 });
 
-app.put('/api/usuarios/:id/senha', async (req, res) => {
+app.put('/api/usuarios/:id/senha', autenticar, exigir_dono_do_recurso, async (req, res) => {
     const { id } = req.params;
     const { senha_antiga, senha_nova } = req.body;
 
@@ -681,14 +726,14 @@ app.put('/api/usuarios/:id/senha', async (req, res) => {
 
         const usuario = usuario_existente.rows[0];
 
-        if(!usuario.senha){
-            return res.status(400).json({ erro: "Esta conta usa login com Google e não tem senha cadastrada." });
-        }
-
         const senha_correta = await bcrypt.compare(senha_antiga, usuario.senha);
 
         if(!senha_correta){
             return res.status(401).json({ erro: "Senha atual incorreta." });
+        }
+
+        if(!senha_atende_tamanho_minimo(senha_nova)){
+            return res.status(400).json({ erro: `A nova senha deve ter pelo menos ${TAMANHO_MINIMO_SENHA} caracteres.` });
         }
 
         const nova_senha_hash = await bcrypt.hash(senha_nova, 10);
@@ -703,11 +748,33 @@ app.put('/api/usuarios/:id/senha', async (req, res) => {
     }
 });
 
-app.delete('/api/usuarios/:id', async (req, res) => {
-    const { id } = req.params;
+app.delete('/api/usuarios/:id', autenticar, exigir_dono_do_recurso, async (req, res) => {
+    const { senha } = req.body;
 
     try {
-        const resultado = await db.query('DELETE FROM usuario WHERE id = $1 RETURNING id', [id]);
+        const usuario_existente = await db.query('SELECT senha FROM usuario WHERE id = $1', [req.usuario_id]);
+
+        if(usuario_existente.rows.length === 0){
+            return res.status(404).json({ erro: "Usuário não encontrado." });
+        }
+
+        const usuario = usuario_existente.rows[0];
+
+        // Defensivo: toda conta hoje é criada com senha, mas se por algum motivo não houver
+        // senha cadastrada, a posse do token JWT já comprova a autenticação nesse caso.
+        if(usuario.senha){
+            if(!senha){
+                return res.status(400).json({ erro: "Informe sua senha atual para confirmar a exclusão." });
+            }
+
+            const senha_correta = await bcrypt.compare(senha, usuario.senha);
+
+            if(!senha_correta){
+                return res.status(401).json({ erro: "Senha atual incorreta." });
+            }
+        }
+
+        const resultado = await db.query('DELETE FROM usuario WHERE id = $1 RETURNING id', [req.usuario_id]);
 
         if(resultado.rows.length === 0){
             return res.status(404).json({ erro: "Usuário não encontrado." });
@@ -724,6 +791,17 @@ app.delete('/api/usuarios/:id', async (req, res) => {
 
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'index.html'));
+});
+
+// Handler de erro genérico: garante que nada (nem uma rejeição de CORS) vaze stack trace/HTML,
+// já que esta é uma API que só deveria responder JSON.
+app.use((err, req, res, next) => {
+    if(err && err.message === 'Origem não permitida pelo CORS.'){
+        return res.status(403).json({ erro: "Origem não permitida." });
+    }
+
+    console.error('Erro não tratado:', err);
+    res.status(500).json({ erro: "Erro interno no servidor." });
 });
 
 const PORTA = process.env.PORT || 3000;

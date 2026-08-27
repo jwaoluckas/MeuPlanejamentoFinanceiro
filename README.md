@@ -22,7 +22,7 @@ A documentação completa de requisitos funcionais, requisitos não funcionais e
 
 O sistema é dividido em cinco telas principais:
 
-**Tela inicial** (`index.html`): autenticação por e-mail e senha ou login com conta Google, com acesso ao fluxo de recuperação de senha.
+**Tela inicial** (`index.html`): autenticação por e-mail e senha, com acesso ao fluxo de recuperação de senha.
 
 **Tela de cadastro** (`frontend/tela_cadastro`): criação de uma nova conta de usuário.
 
@@ -36,9 +36,9 @@ O backend expõe uma API REST em Node.js/Express que valida regras de negócio (
 
 ## Tecnologias utilizadas
 
-**Backend**: Node.js, Express, PostgreSQL (via `pg`), bcrypt (hash de senha), google-auth-library (validação do token do Google), nodemailer (envio de e-mails de confirmação de cadastro e redefinição de senha), dotenv, cors.
+**Backend**: Node.js, Express, PostgreSQL (via `pg`), bcrypt (hash de senha), nodemailer (envio de e-mails de confirmação de cadastro e redefinição de senha), dotenv, cors.
 
-**Frontend**: HTML, CSS e JavaScript puros (sem framework), Google Identity Services (login com Google) e jsPDF (geração de PDF no navegador).
+**Frontend**: HTML, CSS e JavaScript puros (sem framework) e jsPDF (geração de PDF no navegador).
 
 **Banco de dados**: PostgreSQL.
 
@@ -72,7 +72,6 @@ O backend expõe uma API REST em Node.js/Express que valida regras de negócio (
 
 - Node.js (versão 18 ou superior recomendada)
 - PostgreSQL instalado e em execução
-- Uma credencial OAuth de Cliente Web no Google Cloud Console, caso deseje testar o login com Google
 - Uma conta Gmail com verificação em duas etapas ativada e uma senha de app gerada, caso deseje testar localmente os fluxos de confirmação de e-mail e recuperação de senha
 
 ## Configuração do ambiente
@@ -109,13 +108,9 @@ DB_NAME=<nome_do_banco>
 
 PORT=3000
 
-GOOGLE_CLIENT_ID=<client_id_do_google_oauth>
-
 EMAIL_USER=<seu_email_do_gmail>
 EMAIL_PASSWORD=<senha_de_app_do_gmail>
 ```
-
-O `GOOGLE_CLIENT_ID` também precisa ser atualizado em `frontend/tela_inicial/botao_google.js`, já que o Google Identity Services roda no navegador e não tem acesso às variáveis de ambiente do servidor.
 
 `EMAIL_USER` e `EMAIL_PASSWORD` são as credenciais de uma conta Gmail usada pelo `nodemailer` (`backend/mailer.js`) para enviar os e-mails de confirmação de cadastro e de recuperação de senha. `EMAIL_PASSWORD` não é a senha normal da conta Google: é uma senha de app, gerada em uma conta com verificação em duas etapas ativada.
 
@@ -138,7 +133,6 @@ Todas as rotas abaixo têm prefixo `/api`.
 |---|---|---|
 | POST | `/usuarios/cadastro` | Recebe nome, e-mail e senha e cria um cadastro pendente, enviando um código de confirmação para o e-mail informado; o usuário só é criado em `usuario` depois que o e-mail é confirmado |
 | POST | `/usuarios/login` | Autentica por e-mail e senha |
-| POST | `/usuarios/login-google` | Autentica ou cadastra um usuário via token do Google |
 | POST | `/usuarios/confirmar-email/confirmar` | Valida o código de confirmação de um cadastro pendente e cria o usuário definitivo |
 | POST | `/usuarios/confirmar-email/reenviar` | Reenvia o código de confirmação de e-mail para um cadastro pendente |
 | POST | `/usuarios/esqueci-senha/solicitar` | Envia um código de verificação para o e-mail do usuário, caso ele exista |

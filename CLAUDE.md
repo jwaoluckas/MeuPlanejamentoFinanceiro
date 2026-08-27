@@ -5,7 +5,7 @@
 | Prioridade | ID | Nome | Descrição |
 |---|---|---|---|
 | ALTA | RF01 | Login do Usuário | O sistema deve permitir que o usuário faça autenticação através de e-mail e senha. |
-| MÉDIA | RF02 | Login com Google | O sistema deve permitir que o usuário faça autenticação através da sua conta Google. |
+| ~~MÉDIA~~ | RF02 | ~~Login com Google~~ (descontinuado) | Removido do escopo do projeto. O sistema oferece autenticação apenas por e-mail e senha (RF01). |
 | ALTA | RF03 | Identificar Renda | O sistema deve permitir que o usuário cadastre, edite e remova fontes de renda (ex: salário, trabalhos freelancer, investimentos, etc.). |
 | ALTA | RF04 | Identificar Gastos | O sistema deve permitir que o usuário cadastre, edite e remova despesas diárias/recorrentes associadas a categorias. |
 | ALTA | RF05 | Dividir e Planejar Gastos | O sistema deve permitir que o usuário selecione modelos pré-definidos de distribuição orçamentária (ex: 50-30-20, 60-30-10). |
@@ -29,20 +29,19 @@
 **Ator:** Usuário
 
 **Descrição**
-O usuário realiza o acesso ao sistema utilizando e-mail e senha cadastrados ou autenticação via conta Google.
+O usuário realiza o acesso ao sistema utilizando e-mail e senha cadastrados.
 
 **Pré-condições**
 1. O usuário deve estar na tela inicial/login do sistema.
 
 **Fluxo Principal**
-1. O usuário escolhe a forma de login: inserindo e-mail e senha ou clicando em "Entrar com o Google".
-2. Caso opte por e-mail e senha, o usuário preenche os campos e clica em "Entrar".
-3. O sistema valida as credenciais informadas (ou valida o token retornado pelo Google).
-4. O sistema gera a sessão do usuário e redireciona para o dashboard principal.
+1. O usuário preenche os campos de e-mail e senha e clica em "Entrar".
+2. O sistema valida as credenciais informadas.
+3. O sistema gera a sessão do usuário e redireciona para o dashboard principal.
 
 **Fluxo Alternativo**
-[Passo 3 — Credenciais ou Tokens inválidos]
-1. O sistema identifica que a senha está incorreta ou o e-mail não existe (ou falha no login Google).
+[Passo 2 — Credenciais inválidas]
+1. O sistema identifica que a senha está incorreta ou o e-mail não existe.
 2. O sistema exibe uma mensagem de erro: "E-mail ou senha inválidos".
 3. O usuário permanece na tela de login para tentar novamente.
 

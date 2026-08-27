@@ -44,6 +44,12 @@ botao_cadastrar.addEventListener('click', async (evento) =>{
     const senha = document.getElementById('senha').value;
     const verifique_senha = document.getElementById('verifique_senha').value;
 
+    if(senha.length < 8){
+        alert("A senha deve ter pelo menos 8 caracteres.");
+
+        return;
+    }
+
     if(senha !== verifique_senha){
         alert("As senhas digitadas não são iguais. Tente novamente!");
 

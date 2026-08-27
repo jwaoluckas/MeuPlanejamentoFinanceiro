@@ -107,3 +107,16 @@ BEGIN
 		);
 	END IF;
 END $$;
+
+-- Substitui o limitador de tentativas de código que antes vivia em memória (Map): agora persiste
+-- no banco, sobrevivendo a reinícios do processo e funcionando com múltiplas instâncias.
+CREATE TABLE IF NOT EXISTS tentativa_verificacao(
+	identificador VARCHAR(255) NOT NULL,
+	tipo VARCHAR(30) NOT NULL,
+	tentativas INT NOT NULL DEFAULT 0,
+	atualizado_em TIMESTAMP NOT NULL DEFAULT NOW(),
+
+	CHECK (tipo IN ('confirmacao_email', 'redefinicao_senha')),
+
+	PRIMARY KEY(identificador, tipo)
+);
