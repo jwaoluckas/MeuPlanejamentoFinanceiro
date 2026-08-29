@@ -5,8 +5,31 @@ const inputs_codigo_email = document.querySelectorAll('#form_confirmar_email .in
 const botao_reenviar_codigo_email = document.getElementById('botao_reenviar_codigo_email');
 const botao_cancelar_cadastro = document.getElementById('botao_cancelar_cadastro');
 
-const parametros_url = new URLSearchParams(window.location.search);
-const cadastro_pendente_id = parametros_url.get('cadastro_pendente_id');
+function obter_cadastro_pendente_id(){
+    const guardado = sessionStorage.getItem('cadastro_pendente_id');
+
+    if(guardado){
+        return guardado;
+    }
+
+    // Compatibilidade com o formato antigo (id na query string): migra para o
+    // sessionStorage para que o id não continue exposto na URL.
+    const id_na_url = new URLSearchParams(window.location.search).get('cadastro_pendente_id');
+
+    if(id_na_url){
+        sessionStorage.setItem('cadastro_pendente_id', id_na_url);
+        return id_na_url;
+    }
+
+    return null;
+}
+
+const cadastro_pendente_id = obter_cadastro_pendente_id();
+
+// Nunca deixa o id na barra de endereço, mesmo que tenha chegado pela URL.
+if(window.location.search){
+    history.replaceState(null, document.title, window.location.pathname);
+}
 
 function ler_codigo_digitado(inputs){
     return Array.from(inputs).map((input) => input.value.trim()).join('');
@@ -49,6 +72,7 @@ form_confirmar_email.addEventListener('submit', async (evento) => {
         const dados = await resposta.json();
 
         if(resposta.ok){
+            sessionStorage.removeItem('cadastro_pendente_id');
             alert(dados.mensagem);
             window.location.href = '../../index.html';
         }
@@ -88,5 +112,6 @@ botao_reenviar_codigo_email.addEventListener('click', async () => {
 });
 
 botao_cancelar_cadastro.addEventListener('click', () => {
+    sessionStorage.removeItem('cadastro_pendente_id');
     window.location.href = '../../index.html';
 });

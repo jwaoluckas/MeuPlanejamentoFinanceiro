@@ -73,7 +73,10 @@ botao_cadastrar.addEventListener('click', async (evento) =>{
             }
 
             else{
-                window.location.href = `../tela_confirmar_email/confirmar_email.html?cadastro_pendente_id=${dados.cadastro_pendente_id}`;
+                // O id do cadastro pendente vai por sessionStorage (mesma aba, mesma origem),
+                // nunca pela URL — assim não fica exposto na barra de endereço nem no histórico.
+                sessionStorage.setItem('cadastro_pendente_id', dados.cadastro_pendente_id);
+                window.location.href = '../tela_confirmar_email/confirmar_email.html';
             }
         }
 
