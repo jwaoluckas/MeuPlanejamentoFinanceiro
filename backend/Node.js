@@ -29,16 +29,25 @@ const origens_permitidas = em_producao
     ? ORIGENS_PERMITIDAS_PRODUCAO
     : [...ORIGENS_PERMITIDAS_PRODUCAO, ...ORIGENS_PERMITIDAS_DESENVOLVIMENTO];
 
-app.use(cors({
-    origin(origem, callback){
-        // Requisições sem header Origin (ex: mesma origem, curl) não passam por checagem de CORS
-        if(!origem || origens_permitidas.includes(origem)){
-            return callback(null, true);
-        }
+app.use((req, res, next) => {
+    // O navegador envia o header Origin mesmo em requisições same-origin (ex: POST feito a partir
+    // de http://localhost:3000 direto no backend, sem Live Server). Nesses casos a origem da
+    // requisição é o próprio host que está respondendo por ela, então ela nunca deve ser bloqueada
+    // pelo CORS — não importa em qual porta/domínio o backend está servindo o frontend no momento.
+    const origem_do_proprio_backend = `${req.protocol}://${req.get('host')}`;
+    const origens_permitidas_nesta_requisicao = [...origens_permitidas, origem_do_proprio_backend];
 
-        callback(new Error('Origem não permitida pelo CORS.'));
-    }
-}));
+    cors({
+        origin(origem, callback){
+            // Requisições sem header Origin (ex: curl, apps mobile) não passam por checagem de CORS
+            if(!origem || origens_permitidas_nesta_requisicao.includes(origem)){
+                return callback(null, true);
+            }
+
+            callback(new Error('Origem não permitida pelo CORS.'));
+        }
+    })(req, res, next);
+});
 
 // ---------- Headers de segurança HTTP ----------
 
@@ -76,6 +85,34 @@ const TAMANHO_MINIMO_SENHA = 8;
 
 function senha_atende_tamanho_minimo(senha){
     return typeof senha === 'string' && senha.length >= TAMANHO_MINIMO_SENHA;
+}
+
+// ---------- Validação de texto livre digitado pelo usuário (nome, descrição, etc.) ----------
+
+// Campos de texto livre são só validados quanto a tipo/tamanho aqui: o valor sempre chega ao banco
+// através de query parametrizada ($1, $2...), então não há risco de injeção de SQL nem de format
+// string (Node não usa esse valor como especificador de formato em nenhum lugar) — o único risco real
+// de entrada estranha (ex: "%1!s%2!s..." do ZAP, texto muito longo, etc.) é estourar o tamanho da
+// coluna no Postgres e o erro do banco vazar como 500 em vez de virar um 400 claro.
+function texto_livre_valido(valor, tamanho_maximo){
+    return typeof valor === 'string' && valor.trim().length > 0 && valor.trim().length <= tamanho_maximo;
+}
+
+// ---------- Erros do Postgres causados por entrada mal formatada (nunca devem virar 500) ----------
+
+// 22001 = valor maior que o tamanho da coluna | 22P02 = tipo incompatível com a coluna (ex: texto num
+// campo numérico) | 23502 = campo obrigatório ausente | 23514 = violação de CHECK (ex: "tipo" fora da
+// lista permitida). Nenhum desses é um bug do servidor: são sempre causados por entrada do usuário.
+const CODIGOS_ERRO_ENTRADA_INVALIDA = new Set(['22001', '22P02', '23502', '23514']);
+
+function tratar_erro_rota(res, error, contexto){
+    console.error(contexto, error);
+
+    if(CODIGOS_ERRO_ENTRADA_INVALIDA.has(error?.code)){
+        return res.status(400).json({ erro: "Dados inválidos." });
+    }
+
+    res.status(500).json({ erro: "Erro interno no servidor." });
 }
 
 function gerar_codigo_verificacao(){
@@ -202,6 +239,10 @@ app.post('/api/usuarios/cadastro', limitador_cadastro_ip, limitador_cadastro_ema
     const { nome, email, senha } = req.body;
 
     try {
+        if(!texto_livre_valido(nome, 70)){
+            return res.status(400).json({ erro: "Informe um nome válido (até 70 caracteres)." });
+        }
+
         if(!senha_atende_tamanho_minimo(senha)){
             return res.status(400).json({ erro: `A senha deve ter pelo menos ${TAMANHO_MINIMO_SENHA} caracteres.` });
         }
@@ -273,8 +314,7 @@ app.post('/api/usuarios/cadastro', limitador_cadastro_ip, limitador_cadastro_ema
     }
 
     catch(error){
-        console.error("Erro no cadastro:", error);
-        res.status(500).json({ erro: "Erro interno no servidor." });
+        tratar_erro_rota(res, error, "Erro no cadastro:");
     }
 });
 
@@ -305,8 +345,7 @@ app.post('/api/usuarios/login', limitador_login_ip, limitador_login_email, async
     }
 
     catch(error){
-        console.error("Erro no login:", error);
-        res.status(500).json({ erro: "Erro interno no servidor." });
+        tratar_erro_rota(res, error, "Erro no login:");
     }
 });
 
@@ -335,8 +374,7 @@ app.post('/api/usuarios/esqueci-senha/solicitar', limitador_codigo_ip, limitador
     }
 
     catch(error){
-        console.error("Erro ao solicitar redefinição de senha:", error);
-        res.status(500).json({ erro: "Erro interno no servidor." });
+        tratar_erro_rota(res, error, "Erro ao solicitar redefinição de senha:");
     }
 });
 
@@ -362,8 +400,7 @@ app.post('/api/usuarios/esqueci-senha/verificar', limitador_codigo_ip, limitador
     }
 
     catch(error){
-        console.error("Erro ao verificar código de redefinição de senha:", error);
-        res.status(500).json({ erro: "Erro interno no servidor." });
+        tratar_erro_rota(res, error, "Erro ao verificar código de redefinição de senha:");
     }
 });
 
@@ -398,8 +435,7 @@ app.post('/api/usuarios/esqueci-senha/redefinir', limitador_codigo_ip, limitador
     }
 
     catch(error){
-        console.error("Erro ao redefinir senha:", error);
-        res.status(500).json({ erro: "Erro interno no servidor." });
+        tratar_erro_rota(res, error, "Erro ao redefinir senha:");
     }
 });
 
@@ -446,8 +482,7 @@ app.post('/api/usuarios/confirmar-email/confirmar', limitador_codigo_ip, limitad
     }
 
     catch(error){
-        console.error("Erro ao confirmar e-mail:", error);
-        res.status(500).json({ erro: "Erro interno no servidor." });
+        tratar_erro_rota(res, error, "Erro ao confirmar e-mail:");
     }
 });
 
@@ -474,8 +509,7 @@ app.post('/api/usuarios/confirmar-email/reenviar', limitador_codigo_ip, limitado
     }
 
     catch(error){
-        console.error("Erro ao reenviar código de confirmação:", error);
-        res.status(500).json({ erro: "Erro interno no servidor." });
+        tratar_erro_rota(res, error, "Erro ao reenviar código de confirmação:");
     }
 });
 
@@ -490,8 +524,7 @@ app.get('/api/modelos-orcamentarios', autenticar, async (req, res) => {
     }
 
     catch(error){
-        console.error("Erro ao listar modelos orçamentários:", error);
-        res.status(500).json({ erro: "Erro interno no servidor." });
+        tratar_erro_rota(res, error, "Erro ao listar modelos orçamentários:");
     }
 });
 
@@ -499,6 +532,14 @@ app.post('/api/modelos-orcamentarios', autenticar, async (req, res) => {
     const { nome, descricao, porcent_necessidades, porcent_desejos, porcent_investimentos } = req.body;
 
     try {
+        if(!texto_livre_valido(nome, 100)){
+            return res.status(400).json({ erro: "Informe um nome válido (até 100 caracteres)." });
+        }
+
+        if(descricao != null && typeof descricao !== 'string'){
+            return res.status(400).json({ erro: "Descrição inválida." });
+        }
+
         if((porcent_necessidades + porcent_desejos + porcent_investimentos) !== 100){
             return res.status(400).json({ erro: "A soma das porcentagens deve fechar exatamente em 100%." });
         }
@@ -517,8 +558,7 @@ app.post('/api/modelos-orcamentarios', autenticar, async (req, res) => {
     }
 
     catch(error){
-        console.error("Erro ao criar modelo orçamentário:", error);
-        res.status(500).json({ erro: "Erro interno no servidor." });
+        tratar_erro_rota(res, error, "Erro ao criar modelo orçamentário:");
     }
 });
 
@@ -542,8 +582,7 @@ app.get('/api/usuarios/:id/modelo-ativo', autenticar, exigir_dono_do_recurso, as
     }
 
     catch(error){
-        console.error("Erro ao buscar modelo ativo:", error);
-        res.status(500).json({ erro: "Erro interno no servidor." });
+        tratar_erro_rota(res, error, "Erro ao buscar modelo ativo:");
     }
 });
 
@@ -565,8 +604,7 @@ app.put('/api/usuarios/:id/modelo-ativo', autenticar, exigir_dono_do_recurso, as
     }
 
     catch(error){
-        console.error("Erro ao aplicar modelo ativo:", error);
-        res.status(500).json({ erro: "Erro interno no servidor." });
+        tratar_erro_rota(res, error, "Erro ao aplicar modelo ativo:");
     }
 });
 
@@ -605,8 +643,7 @@ app.get('/api/usuarios/:id/lancamentos', autenticar, exigir_dono_do_recurso, asy
     }
 
     catch(error){
-        console.error("Erro ao listar lançamentos:", error);
-        res.status(500).json({ erro: "Erro interno no servidor." });
+        tratar_erro_rota(res, error, "Erro ao listar lançamentos:");
     }
 });
 
@@ -623,8 +660,7 @@ app.get('/api/usuarios/:id/ultimo-mes', autenticar, exigir_dono_do_recurso, asyn
     }
 
     catch(error){
-        console.error("Erro ao buscar último mês informado:", error);
-        res.status(500).json({ erro: "Erro interno no servidor." });
+        tratar_erro_rota(res, error, "Erro ao buscar último mês informado:");
     }
 });
 
@@ -637,16 +673,29 @@ app.get('/api/usuarios/:id/mes-editavel', autenticar, exigir_dono_do_recurso, as
     }
 
     catch(error){
-        console.error("Erro ao calcular mês editável:", error);
-        res.status(500).json({ erro: "Erro interno no servidor." });
+        tratar_erro_rota(res, error, "Erro ao calcular mês editável:");
     }
 });
+
+const TIPOS_LANCAMENTO_VALIDOS = ['renda', 'necessario', 'desejo', 'investimento'];
 
 app.post('/api/usuarios/:id/lancamentos', autenticar, exigir_dono_do_recurso, async (req, res) => {
     const { id } = req.params;
     const { ano, mes, tipo, nome, valor, parcela_atual, parcela_total } = req.body;
 
     try {
+        if(!texto_livre_valido(nome, 100)){
+            return res.status(400).json({ erro: "Informe um nome válido (até 100 caracteres)." });
+        }
+
+        if(!TIPOS_LANCAMENTO_VALIDOS.includes(tipo)){
+            return res.status(400).json({ erro: "Tipo de lançamento inválido." });
+        }
+
+        if(typeof valor !== 'number' || !Number.isFinite(valor) || valor < 0){
+            return res.status(400).json({ erro: "Informe um valor numérico válido, maior ou igual a zero." });
+        }
+
         const agora = new Date();
         const ano_atual = agora.getFullYear();
         const mes_atual = agora.getMonth() + 1;
@@ -686,8 +735,7 @@ app.post('/api/usuarios/:id/lancamentos', autenticar, exigir_dono_do_recurso, as
     }
 
     catch(error){
-        console.error("Erro ao criar lançamento:", error);
-        res.status(500).json({ erro: "Erro interno no servidor." });
+        tratar_erro_rota(res, error, "Erro ao criar lançamento:");
     }
 });
 
@@ -708,8 +756,7 @@ app.delete('/api/lancamentos/:id', autenticar, async (req, res) => {
     }
 
     catch(error){
-        console.error("Erro ao remover lançamento:", error);
-        res.status(500).json({ erro: "Erro interno no servidor." });
+        tratar_erro_rota(res, error, "Erro ao remover lançamento:");
     }
 });
 
@@ -743,8 +790,7 @@ app.put('/api/usuarios/:id/senha', autenticar, exigir_dono_do_recurso, async (re
     }
 
     catch(error){
-        console.error("Erro ao alterar senha:", error);
-        res.status(500).json({ erro: "Erro interno no servidor." });
+        tratar_erro_rota(res, error, "Erro ao alterar senha:");
     }
 });
 
@@ -784,8 +830,7 @@ app.delete('/api/usuarios/:id', autenticar, exigir_dono_do_recurso, async (req, 
     }
 
     catch(error){
-        console.error("Erro ao excluir usuário:", error);
-        res.status(500).json({ erro: "Erro interno no servidor." });
+        tratar_erro_rota(res, error, "Erro ao excluir usuário:");
     }
 });
 
