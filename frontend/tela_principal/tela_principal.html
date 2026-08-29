@@ -85,7 +85,7 @@
             <div class="bloco_mes">
                 <p class="linha_total">Último mês informado: <span id="ultimo_mes_informado"></span></p>
 
-                <button type="button" id="botao_lancar_mes">ADICIONAR LANÇAMENTO — <span id="rotulo_mes_editavel"></span></button>
+                <button type="button" id="botao_lancar_mes">ADICIONAR LANÇAMENTO</button>
 
                 <form id="form_lancamento" class="form_novo_modelo" hidden>
                     <select id="lancamento_tipo">
@@ -191,6 +191,32 @@
                 <select id="exportar_mes_fim"></select>
                 <button type="button" id="botao_confirmar_exportar_varios_meses">Confirmar</button>
             </div>
+        </div>
+    </div>
+
+    <div class="fundo_modal" id="fundo_modal_mes_lancamento" hidden>
+        <div class="janela_modal">
+            <div class="cabecalho_modal">
+                <h2>Adicionar lançamento</h2>
+                <button type="button" id="botao_fechar_modal_mes_lancamento" class="botao_fechar_modal">×</button>
+            </div>
+
+            <p>Escolha o mês do lançamento. Só o mês atual pode receber lançamentos agora — os meses seguintes aparecem apenas como prévia.</p>
+
+            <div class="lista_meses_rolavel" id="lista_meses_lancamento"></div>
+        </div>
+    </div>
+
+    <div class="fundo_modal" id="fundo_modal_mes_edicao" hidden>
+        <div class="janela_modal">
+            <div class="cabecalho_modal">
+                <h2>Editar planejamento</h2>
+                <button type="button" id="botao_fechar_modal_mes_edicao" class="botao_fechar_modal">×</button>
+            </div>
+
+            <p>Escolha um mês com lançamentos registrados para editar.</p>
+
+            <div class="lista_meses_rolavel" id="lista_meses_edicao"></div>
         </div>
     </div>
 

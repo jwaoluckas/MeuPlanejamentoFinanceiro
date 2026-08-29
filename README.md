@@ -30,9 +30,9 @@ O sistema é dividido em cinco telas principais:
 
 **Tela de esqueci minha senha** (`frontend/tela_esqueci_minha_senha`): solicitação do código de redefinição de senha e definição de uma nova senha a partir desse código.
 
-**Tela principal** (`frontend/tela_principal`): painel financeiro do usuário autenticado, onde é possível lançar rendas e gastos do mês corrente, escolher ou criar um modelo de planejamento orçamentário, visualizar um gráfico de gastos ao longo do tempo, alternar entre tema claro e escuro, gerenciar o perfil (troca de senha, exclusão de conta) e exportar um relatório em PDF de um mês específico ou de um intervalo de meses.
+**Tela principal** (`frontend/tela_principal`): painel financeiro do usuário autenticado. O botão "Adicionar lançamento" abre um modal com os meses do ano corrente (do mês atual até dezembro), em que só o mês atual é selecionável — os seguintes aparecem apenas como prévia. O botão "Editar planejamento" abre uma lista rolável dos meses que já têm lançamentos registrados e, ao escolher um deles, permite adicionar e remover rendas/gastos daquele mês, além de escolher ou criar um modelo de planejamento orçamentário. A tela ainda exibe um gráfico de gastos ao longo do tempo, alterna entre tema claro e escuro, gerencia o perfil (troca de senha, exclusão de conta) e exporta um relatório em PDF de um mês específico ou de um intervalo de meses.
 
-O backend expõe uma API REST em Node.js/Express que valida regras de negócio (por exemplo: a soma dos percentuais de um modelo deve fechar em 100%, e só é possível lançar informações do mês vigente ou do mês anterior, caso este ainda não tenha sido lançado) e persiste os dados em PostgreSQL.
+O backend expõe uma API REST em Node.js/Express que valida regras de negócio (por exemplo: a soma dos percentuais de um modelo deve fechar em 100%, e não é possível lançar informações de um mês que ainda não chegou — meses passados podem ser editados pela tela de edição de planejamento) e persiste os dados em PostgreSQL.
 
 ## Tecnologias utilizadas
 
@@ -144,8 +144,9 @@ Todas as rotas abaixo têm prefixo `/api`.
 | PUT | `/usuarios/:id/modelo-ativo` | Define o modelo de planejamento ativo do usuário |
 | GET | `/usuarios/:id/lancamentos?ano=&mes=` | Lista as rendas e gastos lançados em um mês |
 | GET | `/usuarios/:id/ultimo-mes` | Retorna o último mês em que houve lançamentos |
-| GET | `/usuarios/:id/mes-editavel` | Retorna qual mês ainda pode receber novos lançamentos |
-| POST | `/usuarios/:id/lancamentos` | Cria um lançamento (renda, gasto necessário, desejo ou investimento) |
+| GET | `/usuarios/:id/meses-com-lancamentos` | Lista os meses (ano/mês distintos) em que o usuário já tem lançamentos |
+| GET | `/usuarios/:id/mes-editavel` | Retorna o mês exibido por padrão na tela (vigente, ou o anterior se o vigente ainda não teve lançamentos) |
+| POST | `/usuarios/:id/lancamentos` | Cria um lançamento (renda, gasto necessário, desejo ou investimento); aceita qualquer mês que não seja futuro |
 | DELETE | `/lancamentos/:id` | Remove um lançamento |
 | PUT | `/usuarios/:id/senha` | Altera a senha do usuário |
 | DELETE | `/usuarios/:id` | Exclui a conta do usuário |

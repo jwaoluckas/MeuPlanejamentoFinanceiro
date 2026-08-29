@@ -664,6 +664,23 @@ app.get('/api/usuarios/:id/ultimo-mes', autenticar, exigir_dono_do_recurso, asyn
     }
 });
 
+app.get('/api/usuarios/:id/meses-com-lancamentos', autenticar, exigir_dono_do_recurso, async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const resultado = await db.query(
+            'SELECT DISTINCT ano, mes FROM lancamento_mensal WHERE usuario_id = $1 ORDER BY ano DESC, mes DESC',
+            [id]
+        );
+
+        res.status(200).json({ meses: resultado.rows });
+    }
+
+    catch(error){
+        tratar_erro_rota(res, error, "Erro ao listar meses com lançamentos:");
+    }
+});
+
 app.get('/api/usuarios/:id/mes-editavel', autenticar, exigir_dono_do_recurso, async (req, res) => {
     const { id } = req.params;
 
@@ -696,20 +713,18 @@ app.post('/api/usuarios/:id/lancamentos', autenticar, exigir_dono_do_recurso, as
             return res.status(400).json({ erro: "Informe um valor numérico válido, maior ou igual a zero." });
         }
 
+        if(!Number.isInteger(ano) || ano < 2000 || !Number.isInteger(mes) || mes < 1 || mes > 12){
+            return res.status(400).json({ erro: "Informe um ano e mês válidos." });
+        }
+
         const agora = new Date();
         const ano_atual = agora.getFullYear();
         const mes_atual = agora.getMonth() + 1;
 
+        // O mês futuro continua bloqueado. Meses passados podem receber lançamentos
+        // (usado pela edição de planejamento de um mês específico já registrado).
         if(ano > ano_atual || (ano === ano_atual && mes > mes_atual)){
             return res.status(400).json({ erro: "Não é possível lançar informações de um mês que ainda não chegou." });
-        }
-
-        const mes_editavel = await obter_mes_editavel(id);
-
-        if(ano !== mes_editavel.ano || mes !== mes_editavel.mes){
-            return res.status(400).json({
-                erro: `No momento só é possível lançar informações de ${String(mes_editavel.mes).padStart(2, '0')}/${mes_editavel.ano}.`
-            });
         }
 
         const tem_parcela = parcela_atual != null && parcela_total != null;

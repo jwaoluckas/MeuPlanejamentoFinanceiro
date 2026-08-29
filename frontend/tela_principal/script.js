@@ -28,7 +28,6 @@ const senha_nova_confirmacao = document.getElementById('senha_nova_confirmacao')
 const botao_planejamento = document.getElementById('botao_planejamento');
 const ultimo_mes_informado = document.getElementById('ultimo_mes_informado');
 const botao_lancar_mes = document.getElementById('botao_lancar_mes');
-const rotulo_mes_editavel = document.getElementById('rotulo_mes_editavel');
 const form_lancamento = document.getElementById('form_lancamento');
 const lancamento_tipo = document.getElementById('lancamento_tipo');
 const lancamento_nome = document.getElementById('lancamento_nome');
@@ -87,6 +86,14 @@ const selecao_varios_meses = document.getElementById('selecao_varios_meses');
 const exportar_mes_inicio = document.getElementById('exportar_mes_inicio');
 const exportar_mes_fim = document.getElementById('exportar_mes_fim');
 const botao_confirmar_exportar_varios_meses = document.getElementById('botao_confirmar_exportar_varios_meses');
+
+const fundo_modal_mes_lancamento = document.getElementById('fundo_modal_mes_lancamento');
+const botao_fechar_modal_mes_lancamento = document.getElementById('botao_fechar_modal_mes_lancamento');
+const lista_meses_lancamento = document.getElementById('lista_meses_lancamento');
+
+const fundo_modal_mes_edicao = document.getElementById('fundo_modal_mes_edicao');
+const botao_fechar_modal_mes_edicao = document.getElementById('botao_fechar_modal_mes_edicao');
+const lista_meses_edicao = document.getElementById('lista_meses_edicao');
 
 const usuario = JSON.parse(localStorage.getItem('usuario'));
 const token = localStorage.getItem('token');
@@ -293,18 +300,20 @@ form_excluir_perfil.addEventListener('submit', async (evento) => {
     }
 });
 
-botao_planejamento.addEventListener('click', () => {
-    seletor_modelo.hidden = !seletor_modelo.hidden;
-    modo_edicao_ativo = !seletor_modelo.hidden;
-    botao_planejamento.textContent = seletor_modelo.hidden ? 'EDITAR PLANEJAMENTO' : 'FECHAR EDIÇÃO';
-
-    if(modelo_ativo_atual){
-        calcular_e_atualizar_informacoes(modelo_ativo_atual);
+botao_planejamento.addEventListener('click', async () => {
+    if(modo_edicao_ativo){
+        fechar_edicao_de_planejamento();
+        mes_em_edicao = null; // volta ao mês padrão (recalculado em carregar_e_atualizar_tudo)
+        await carregar_e_atualizar_tudo();
+        return;
     }
+
+    await abrir_modal_mes_edicao();
 });
 
 function fechar_edicao_de_planejamento(){
     seletor_modelo.hidden = true;
+    form_lancamento.hidden = true;
     modo_edicao_ativo = false;
     botao_planejamento.textContent = 'EDITAR PLANEJAMENTO';
 }
@@ -314,31 +323,34 @@ function fechar_edicao_de_planejamento(){
 const NOMES_MESES_LONGO = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
 let mes_editavel_atual = null;
+let mes_em_edicao = null;
 let dados_financeiros_atuais = { rendas: [], necessarios: [], desejos: [], investimentos: [] };
 
 function formatar_mes_ano(ano, mes){
     return `${NOMES_MESES_LONGO[mes - 1]} de ${ano}`;
 }
 
-function gerar_opcoes_meses(quantidade){
-    const hoje = new Date();
-    const opcoes = [];
-
-    for(let i = 0; i < quantidade; i++){
-        const data = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
-        opcoes.push({ ano: data.getFullYear(), mes: data.getMonth() + 1 });
-    }
-
-    return opcoes;
+function capitalizar(texto){
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
-function preencher_select_meses(elemento_select, quantidade){
+function formatar_mes_ano_curto(ano, mes){
+    return `${String(mes).padStart(2, '0')}/${ano}`;
+}
+
+// Rótulo de um mês numa lista/dropdown: mês por extenso quando todos os meses
+// exibidos são do mesmo ano; mês/ano quando a lista abrange mais de um ano.
+function rotular_mes_da_lista(ano, mes, tem_varios_anos){
+    return tem_varios_anos ? formatar_mes_ano_curto(ano, mes) : capitalizar(NOMES_MESES_LONGO[mes - 1]);
+}
+
+function preencher_select_meses_com_lancamentos(elemento_select, meses, tem_varios_anos){
     elemento_select.innerHTML = '';
 
-    gerar_opcoes_meses(quantidade).forEach(({ ano, mes }) => {
+    meses.forEach(({ ano, mes }) => {
         const opcao = document.createElement('option');
         opcao.value = `${ano}-${String(mes).padStart(2, '0')}`;
-        opcao.textContent = formatar_mes_ano(ano, mes);
+        opcao.textContent = rotular_mes_da_lista(ano, mes, tem_varios_anos);
         elemento_select.appendChild(opcao);
     });
 }
@@ -402,6 +414,12 @@ async function carregar_mes_editavel(usuario_id){
     const resposta = await fetch_autenticado(`${API_BASE_URL}/api/usuarios/${usuario_id}/mes-editavel`);
     const dados = await resposta.json();
     return dados.mes_editavel;
+}
+
+async function carregar_meses_com_lancamentos(usuario_id){
+    const resposta = await fetch_autenticado(`${API_BASE_URL}/api/usuarios/${usuario_id}/meses-com-lancamentos`);
+    const dados = await resposta.json();
+    return dados.meses || [];
 }
 
 async function carregar_lancamentos(usuario_id, ano, mes){
@@ -565,9 +583,12 @@ async function carregar_e_atualizar_tudo(){
     ultimo_mes_informado.textContent = ultimo_mes ? formatar_mes_ano(ultimo_mes.ano, ultimo_mes.mes) : 'nenhum mês informado ainda';
 
     mes_editavel_atual = await carregar_mes_editavel(usuario.id);
-    rotulo_mes_editavel.textContent = formatar_mes_ano(mes_editavel_atual.ano, mes_editavel_atual.mes);
 
-    const lancamentos = await carregar_lancamentos(usuario.id, mes_editavel_atual.ano, mes_editavel_atual.mes);
+    if(!mes_em_edicao){
+        mes_em_edicao = mes_editavel_atual;
+    }
+
+    const lancamentos = await carregar_lancamentos(usuario.id, mes_em_edicao.ano, mes_em_edicao.mes);
     dados_financeiros_atuais = agrupar_lancamentos(lancamentos);
 
     if(modelo_ativo_atual){
@@ -575,8 +596,129 @@ async function carregar_e_atualizar_tudo(){
     }
 }
 
-botao_lancar_mes.addEventListener('click', () => {
-    form_lancamento.hidden = !form_lancamento.hidden;
+// ---------- Modal: escolher o mês de um novo lançamento ----------
+
+function fechar_modal_mes_lancamento(){
+    fundo_modal_mes_lancamento.hidden = true;
+}
+
+async function iniciar_lancamento_no_mes(ano, mes){
+    if(modo_edicao_ativo){
+        fechar_edicao_de_planejamento();
+    }
+
+    mes_em_edicao = { ano, mes };
+    await carregar_e_atualizar_tudo();
+    form_lancamento.hidden = false;
+}
+
+function abrir_modal_mes_lancamento(){
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes_atual = hoje.getMonth() + 1;
+
+    lista_meses_lancamento.innerHTML = '';
+
+    for(let mes = mes_atual; mes <= 12; mes++){
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'item_mes_rolavel';
+        item.textContent = capitalizar(formatar_mes_ano(ano, mes));
+
+        if(mes === mes_atual){
+            item.addEventListener('click', () => {
+                fechar_modal_mes_lancamento();
+                iniciar_lancamento_no_mes(ano, mes);
+            });
+        }
+
+        else{
+            item.disabled = true;
+        }
+
+        lista_meses_lancamento.appendChild(item);
+    }
+
+    fundo_modal_mes_lancamento.hidden = false;
+}
+
+botao_lancar_mes.addEventListener('click', abrir_modal_mes_lancamento);
+botao_fechar_modal_mes_lancamento.addEventListener('click', fechar_modal_mes_lancamento);
+
+fundo_modal_mes_lancamento.addEventListener('click', (evento) => {
+    if(evento.target === fundo_modal_mes_lancamento){
+        fechar_modal_mes_lancamento();
+    }
+});
+
+// ---------- Modal: escolher o mês a editar no planejamento ----------
+
+function fechar_modal_mes_edicao(){
+    fundo_modal_mes_edicao.hidden = true;
+}
+
+async function entrar_modo_edicao_mes(ano, mes){
+    mes_em_edicao = { ano, mes };
+    modo_edicao_ativo = true;
+    seletor_modelo.hidden = false;
+    form_lancamento.hidden = false;
+    botao_planejamento.textContent = 'FECHAR EDIÇÃO';
+    await carregar_e_atualizar_tudo();
+}
+
+async function abrir_modal_mes_edicao(){
+    if(!usuario){
+        return;
+    }
+
+    lista_meses_edicao.innerHTML = '';
+
+    let meses = [];
+
+    try{
+        meses = await carregar_meses_com_lancamentos(usuario.id);
+    }
+
+    catch(erro){
+        console.error('Erro ao carregar meses com lançamentos:', erro);
+        alert('Não foi possível conectar ao servidor.');
+        return;
+    }
+
+    if(meses.length === 0){
+        const aviso = document.createElement('p');
+        aviso.className = 'aviso_sem_meses';
+        aviso.textContent = 'Você ainda não tem lançamentos registrados.';
+        lista_meses_edicao.appendChild(aviso);
+        fundo_modal_mes_edicao.hidden = false;
+        return;
+    }
+
+    const tem_varios_anos = new Set(meses.map((item) => item.ano)).size > 1;
+
+    meses.forEach(({ ano, mes }) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'item_mes_rolavel';
+        item.textContent = rotular_mes_da_lista(ano, mes, tem_varios_anos);
+
+        item.addEventListener('click', () => {
+            fechar_modal_mes_edicao();
+            entrar_modo_edicao_mes(ano, mes);
+        });
+
+        lista_meses_edicao.appendChild(item);
+    });
+
+    fundo_modal_mes_edicao.hidden = false;
+}
+
+botao_fechar_modal_mes_edicao.addEventListener('click', fechar_modal_mes_edicao);
+
+fundo_modal_mes_edicao.addEventListener('click', (evento) => {
+    if(evento.target === fundo_modal_mes_edicao){
+        fechar_modal_mes_edicao();
+    }
 });
 
 function tipo_aceita_parcelamento(tipo){
@@ -610,7 +752,7 @@ lancamento_parcelado.addEventListener('change', () => {
 form_lancamento.addEventListener('submit', async (evento) => {
     evento.preventDefault();
 
-    if(!usuario || !mes_editavel_atual){
+    if(!usuario || !mes_em_edicao){
         return;
     }
 
@@ -630,8 +772,8 @@ form_lancamento.addEventListener('submit', async (evento) => {
         const resposta = await fetch_autenticado(`${API_BASE_URL}/api/usuarios/${usuario.id}/lancamentos`, {
             method: 'POST',
             body: JSON.stringify({
-                ano: mes_editavel_atual.ano,
-                mes: mes_editavel_atual.mes,
+                ano: mes_em_edicao.ano,
+                mes: mes_em_edicao.mes,
                 tipo: lancamento_tipo.value,
                 nome: lancamento_nome.value,
                 valor: Number(lancamento_valor.value),
@@ -644,9 +786,15 @@ form_lancamento.addEventListener('submit', async (evento) => {
 
         if(resposta.ok){
             form_lancamento.reset();
-            form_lancamento.hidden = true;
             opcao_parcelado.hidden = true;
             resetar_campos_parcela();
+
+            // No modo de edição de um mês específico o formulário fica aberto para
+            // vários lançamentos seguidos; no fluxo normal ele se fecha após salvar.
+            if(!modo_edicao_ativo){
+                form_lancamento.hidden = true;
+            }
+
             await carregar_e_atualizar_tudo();
         }
 
@@ -1032,11 +1180,34 @@ function resetar_modal_exportar(){
     selecao_varios_meses.hidden = true;
 }
 
-function abrir_modal_exportar(){
+async function abrir_modal_exportar(){
+    if(!usuario){
+        return;
+    }
+
+    let meses = [];
+
+    try{
+        meses = await carregar_meses_com_lancamentos(usuario.id);
+    }
+
+    catch(erro){
+        console.error('Erro ao carregar meses com lançamentos:', erro);
+        alert('Não foi possível conectar ao servidor.');
+        return;
+    }
+
+    if(meses.length === 0){
+        alert('Você ainda não tem lançamentos cadastrados para exportar.');
+        return;
+    }
+
+    const tem_varios_anos = new Set(meses.map((item) => item.ano)).size > 1;
+
     resetar_modal_exportar();
-    preencher_select_meses(exportar_mes_unico, 36);
-    preencher_select_meses(exportar_mes_inicio, 36);
-    preencher_select_meses(exportar_mes_fim, 36);
+    preencher_select_meses_com_lancamentos(exportar_mes_unico, meses, tem_varios_anos);
+    preencher_select_meses_com_lancamentos(exportar_mes_inicio, meses, tem_varios_anos);
+    preencher_select_meses_com_lancamentos(exportar_mes_fim, meses, tem_varios_anos);
     fundo_modal_exportar.hidden = false;
 }
 
